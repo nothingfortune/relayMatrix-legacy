@@ -125,7 +125,7 @@ header .tabs .btn.primary:hover { background: var(--raised); border-color: trans
 .field.check label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 12px;
                      color: var(--fg); }
 .field.check input { width: auto; }
-.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+.field-grid, .tuning-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
 .palette-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .palette-bar h2 { margin: 0; }
 .palette-bar .filter { flex: 1; width: auto; margin: 0; min-width: 0; }
@@ -693,6 +693,8 @@ body.dragging-key .palette.drop-over { outline: none; }
 .field.slot select[data-device-send] { order: 9; flex: 1 0 100%; margin-left: 82px; max-width: calc(100% - 82px);
   font-size: var(--fs-1); padding: 2px 6px; color: var(--muted); background: transparent; }
 .stick-mode .note { margin: 4px 0 8px; }
+.stick-tuning { margin: 6px 0; }
+.stick-tuning summary { cursor: pointer; font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
 .ingame-tools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin: 4px 0 10px; }
 .ingame-help { flex: 1 1 320px; }
 .ingame-help summary { cursor: pointer; font-size: var(--fs-1); color: var(--muted); padding: 4px 0; }

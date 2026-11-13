@@ -448,7 +448,12 @@ array of per-key records.
   app's one "side" setting, `isRightAnalog` (the left unit's export, false, sent the left
   stick; the right side is inferred). `stick-not-keyboard` asks for keyboard by name, not
   "any known mode". In the editor the Key panel's Stick sends picks the mode (and the
-  pointer speed), and taking a stick off keys takes its directions off with it; each press
+  pointer speed, shown 1-10 as the app's slider does: the unit stores 11 minus it), and a
+  Tuning section sets `deadzone_lower`/`deadzone_upper` (percent of 512, into
+  `lowerLimit`/`upperLimit`), `threshold` (`sensitivity`, 0-25) and `cone_vertical`/
+  `cone_horizontal` (1-89). The compiler writes those only where given and decompiling does
+  not emit them, so a template's tuning passes through as before. Taking a stick off keys
+  takes its directions off with it; each press
   of a key has "or send instead" for an Xbox button or trigger, and on the tap for scroll.
 - Key values mix `KeyboardEvent.code` strings (`KeyF`, `Digit1`, `Escape`) with legacy
   numeric JS keyCodes (arrows as `"37"`–`"40"`, Shift as `"16"`). `keys.ts` records which

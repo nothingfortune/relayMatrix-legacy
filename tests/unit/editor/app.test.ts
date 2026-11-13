@@ -875,6 +875,11 @@ describe("the inspector in plain words", () => {
     const game = payload.games[0];
     if (game === undefined) throw new Error("no game");
     game.lintConfig = { ...game.lintConfig, require_keyboard_stick: false };
+    for (const template of Object.values(payload.templates)) {
+      for (const input of template.profiles.flatMap((profile) => profile.inputs)) {
+        if (input.analogSettings) input.analogSettings.mouseSensitivity = 2;
+      }
+    }
     document.body.innerHTML = '<div id="app"></div>';
     start(payload);
     document.querySelector<HTMLButtonElement>(".stick-dial .dir.up")?.click();
@@ -883,8 +888,22 @@ describe("the inspector in plain words", () => {
     mode.value = "mouse";
     mode.dispatchEvent(new Event("change"));
     expect(document.querySelector(".inspector .field-grid")).toBeNull();
+    // As the Azeron app's slider shows it: 1 to 10, higher faster; the unit stores 11 minus.
+    // The templates hold 2 here, so the stick shows 9 until the profile says otherwise.
     const speed = document.querySelector<HTMLInputElement>("input[data-stick-mode=speed]");
-    expect(speed?.value).toBe("5");
+    expect(speed?.value).toBe("9");
+    if (!speed) throw new Error("no speed");
+    // 6 is the app's default (stored 5): chosen over the template's 9, it is kept, not
+    // dropped, or the template's would go on being written.
+    speed.value = "6";
+    speed.dispatchEvent(new Event("change"));
+    expect(document.querySelector<HTMLInputElement>("input[data-stick-mode=speed]")?.value).toBe(
+      "6",
+    );
+    // The threshold is hidden for a mouse stick, as the app hides it; the deadzones stay.
+    expect(document.querySelector("input[data-tuning=threshold]")).toBeNull();
+    const lower = document.querySelector<HTMLInputElement>("input[data-tuning=deadzone_lower]");
+    expect(lower?.placeholder).toBe("0");
     // The board says what the stick does now, with no directions on it.
     const dial = document.querySelector(".stick-dial");
     expect(dial?.closest(".thumb-group")?.querySelector(".head")?.textContent).toContain("mouse");

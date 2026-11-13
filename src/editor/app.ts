@@ -69,10 +69,19 @@ import {
   DEFAULT_DOUBLE_DELAY,
   DEFAULT_FEATURE_DELAY,
   SLOTS,
+  MAX_MOUSE_SENSITIVITY,
+  MAX_THRESHOLD,
   STICK_DIRECTIONS,
   STICK_MODE_CODES,
+  STICK_TRAVEL,
 } from "../types/azeron.js";
-import type { ExportDocument, ExportProfile, Slot, StickDirection } from "../types/azeron.js";
+import type {
+  AnalogSettings,
+  ExportDocument,
+  ExportProfile,
+  Slot,
+  StickDirection,
+} from "../types/azeron.js";
 import type { EditorGame, EditorGenre, EditorPayload } from "../types/editor.js";
 import type {
   NameStatus,
@@ -346,7 +355,7 @@ const STICK_MODE_NAMES: Readonly<Record<string, string>> = {
  * What a stick sends: keys, an Xbox stick, or the pointer. A game whose checks require a
  * keyboard stick (Everspace 2, constraint 1) shows the others, disabled, with why.
  */
-function stickModeField(spec: PositionSpec): HTMLElement {
+function stickModeField(spec: PositionSpec, base?: AnalogSettings): HTMLElement {
   const keyboardOnly = currentGame().lintConfig.require_keyboard_stick === true;
   const current = spec.mode ?? "keyboard";
   const select = el("select", { "data-stick-mode": "select" });
@@ -377,30 +386,139 @@ function stickModeField(spec: PositionSpec): HTMLElement {
     );
   }
   if (current === "mouse") {
+    // Shown as the app's Mouse Speed slider shows it: 1 to 10, higher faster. The unit
+    // stores 11 minus that.
+    const stored =
+      spec.mouse_sensitivity ??
+      (typeof base?.mouseSensitivity === "number" ? base.mouseSensitivity : 5);
     const speed = el("input", {
       type: "number",
       min: "1",
-      max: "20",
+      max: String(MAX_MOUSE_SENSITIVITY),
       step: "1",
-      value: String(spec.mouse_sensitivity ?? 5),
+      value: String(MAX_MOUSE_SENSITIVITY + 1 - stored),
       "data-stick-mode": "speed",
     });
     speed.addEventListener("change", () => {
-      const value = Number(speed.value);
-      if (!Number.isInteger(value) || value < 1 || value > 255) return;
+      const shown = Number(speed.value);
+      if (!Number.isInteger(shown) || shown < 1 || shown > MAX_MOUSE_SENSITIVITY) return;
       // Kept even at the app's default: the template may hold another speed, and only a
       // value the profile gives is written over it.
-      spec.mouse_sensitivity = value;
+      spec.mouse_sensitivity = MAX_MOUSE_SENSITIVITY + 1 - shown;
       render();
     });
     field.append(
       el("div", { class: "field" }, [
-        el("label", {}, ["Pointer speed (lower is faster; the app's default is 5)"]),
+        el("label", {}, ["Pointer speed (1 to 10, as the Azeron app shows it)"]),
         speed,
       ]),
     );
   }
+  field.append(stickTuningField(spec, base, current));
   return field;
+}
+
+/**
+ * The stick's deadzones, threshold and cones, in the Azeron app's own terms. A field left
+ * empty keeps what the stick has now (its template's value, shown as the placeholder).
+ */
+function stickTuningField(
+  spec: PositionSpec,
+  base: AnalogSettings | undefined,
+  mode: string,
+): HTMLElement {
+  const cones = (base?.analogCones ?? {}) as Record<string, unknown>;
+  const number = (value: unknown): number | undefined =>
+    typeof value === "number" ? value : undefined;
+  const percent = (raw: unknown): number | undefined => {
+    const value = number(raw);
+    return value === undefined ? undefined : Math.round((value * 100) / STICK_TRAVEL);
+  };
+  type TuningField =
+    "deadzone_lower" | "deadzone_upper" | "threshold" | "cone_vertical" | "cone_horizontal";
+  const rows: {
+    field: TuningField;
+    label: string;
+    low: number;
+    high: number;
+    now: number | undefined;
+  }[] = [
+    {
+      field: "deadzone_lower",
+      label: "Lower deadzone (%)",
+      low: 0,
+      high: 99,
+      now: percent(base?.lowerLimit),
+    },
+    {
+      field: "deadzone_upper",
+      label: "Upper deadzone (%)",
+      low: 0,
+      high: 99,
+      now: percent(base?.upperLimit),
+    },
+  ];
+  // The app hides the threshold for a mouse stick, and the cones only steer keys.
+  if (mode !== "mouse") {
+    rows.push({
+      field: "threshold",
+      label: "Sensitivity threshold (0 to 25)",
+      low: 0,
+      high: MAX_THRESHOLD,
+      now: number(base?.sensitivity),
+    });
+  }
+  if (mode === "keyboard") {
+    rows.push(
+      {
+        field: "cone_vertical",
+        label: "Vertical cone (degrees)",
+        low: 1,
+        high: 89,
+        now: number(cones.verticalCone),
+      },
+      {
+        field: "cone_horizontal",
+        label: "Horizontal cone (degrees)",
+        low: 1,
+        high: 89,
+        now: number(cones.horizontalCone),
+      },
+    );
+  }
+  const tuned = rows.some((row) => spec[row.field] !== undefined);
+  const details = el("details", { class: "stick-tuning" }, [
+    el("summary", {}, [tuned ? "Tuning (changed)" : "Tuning"]),
+  ]);
+  if (tuned) details.setAttribute("open", "open");
+  const grid = el("div", { class: "tuning-grid" });
+  for (const row of rows) {
+    const input = el("input", {
+      type: "number",
+      min: String(row.low),
+      max: String(row.high),
+      step: "1",
+      placeholder: row.now === undefined ? "as it is" : String(row.now),
+      value: spec[row.field] === undefined ? "" : String(spec[row.field]),
+      "data-tuning": row.field,
+    });
+    input.addEventListener("change", () => {
+      if (input.value.trim() === "") {
+        removeKey(spec, row.field);
+      } else {
+        const value = Number(input.value);
+        if (!Number.isInteger(value) || value < row.low || value > row.high) {
+          input.value = spec[row.field] === undefined ? "" : String(spec[row.field]);
+          return;
+        }
+        spec[row.field] = value;
+      }
+      render();
+    });
+    grid.append(el("div", { class: "field" }, [el("label", {}, [row.label]), input]));
+  }
+  details.append(grid);
+  return details;
 }
 
 /** The Xbox buttons and triggers, and scroll, a key's press can send instead of an action. */
@@ -1679,7 +1797,19 @@ function renderInspector(): HTMLElement {
   });
   panel.append(el("div", { class: "field" }, [el("label", {}, ["Label"]), labelInput]));
 
-  if (isStick) panel.append(stickModeField(spec));
+  if (isStick) {
+    // What the stick has where the profile says nothing: its template's record.
+    let base: AnalogSettings | undefined;
+    try {
+      const pin = device.positions[selection.position]?.pin;
+      const template = templateFor(game, profileFor(selection.slug));
+      const index = profileFor(selection.slug).meta.template_profile ?? 0;
+      base = template.profiles[index]?.inputs.find((input) => input.pinOne === pin)?.analogSettings;
+    } catch {
+      base = undefined;
+    }
+    panel.append(stickModeField(spec, base));
+  }
   if (isStick && (spec.mode ?? "keyboard") !== "keyboard") {
     panel.append(
       el("div", { class: "note" }, [

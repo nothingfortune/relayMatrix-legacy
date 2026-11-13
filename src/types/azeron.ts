@@ -174,6 +174,11 @@ export const STICK_MODE_CODES: Record<string, string> = {
  * stored 2, so lower looks faster; the range is not known yet.
  */
 export const DEFAULT_MOUSE_SENSITIVITY = 5;
+/** The app's slider runs 1 to 10, and stores 11 minus what it shows. */
+export const MAX_MOUSE_SENSITIVITY = 10;
+/** A deadzone's percent is of 512, the stick's travel as the app stores it. */
+export const STICK_TRAVEL = 512;
+export const MAX_THRESHOLD = 25;
 
 /**
  * The `analogKeys` block the unit actually reads.

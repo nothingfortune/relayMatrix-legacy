@@ -6,6 +6,11 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
+  deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
+  own terms and ranges, read from its interface code; an empty field keeps what the stick
+  has, shown beside it. The pointer speed of a mouse stick is shown 1 to 10 as the app's
+  slider shows it (the unit stores 11 minus it, so the owner's "super sensitive" 2 is 9).
 - **The editor sets what a stick sends, and a key can send an Xbox button or scroll.** The
   Key panel's Stick sends offers keys, an Xbox stick or the mouse pointer (with its speed);
   each press of a key has "or send instead" for an Xbox button or trigger, and the tap for
@@ -91,6 +96,11 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
+  deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
+  own terms and ranges, read from its interface code; an empty field keeps what the stick
+  has, shown beside it. The pointer speed of a mouse stick is shown 1 to 10 as the app's
+  slider shows it (the unit stores 11 minus it, so the owner's "super sensitive" 2 is 9).
 - **The editor sets what a stick sends, and a key can send an Xbox button or scroll.** The
   Key panel's Stick sends offers keys, an Xbox stick or the mouse pointer (with its speed);
   each press of a key has "or send instead" for an Xbox button or trigger, and the tap for
@@ -594,6 +604,11 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
+  deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
+  own terms and ranges, read from its interface code; an empty field keeps what the stick
+  has, shown beside it. The pointer speed of a mouse stick is shown 1 to 10 as the app's
+  slider shows it (the unit stores 11 minus it, so the owner's "super sensitive" 2 is 9).
 - **The editor sets what a stick sends, and a key can send an Xbox button or scroll.** The
   Key panel's Stick sends offers keys, an Xbox stick or the mouse pointer (with its speed);
   each press of a key has "or send instead" for an Xbox button or trigger, and the tap for

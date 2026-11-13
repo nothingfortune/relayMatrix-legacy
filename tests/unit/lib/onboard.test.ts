@@ -486,3 +486,44 @@ describe("a layout that sends Xbox output and keys together", () => {
     expect(await lintWith(() => undefined)).toEqual([]);
   });
 });
+
+describe("a stick's tuning", () => {
+  const SINGLE_V5 = "games/SpaceSims/everspace/profiles/single-v5.yaml";
+  function stickWith(extra: Partial<PositionSpec>): InputRecord | undefined {
+    const game = new Game("games/SpaceSims/everspace");
+    const profile = loadProfile(SINGLE_V5, game);
+    const template = loadTemplate("templates/everspace2-v5.json");
+    const data = structuredClone(profile.data);
+    data.positions.stick = { ...data.positions.stick, ...extra };
+    const edited = new Profile(data, profile.device, { path: profile.path, game });
+    const built = compileProfile(edited, { template, actions: game.actions.actions });
+    const pin = profile.device.positions.stick?.pin;
+    return built.profiles[0]?.inputs.find((input) => input.pinOne === pin);
+  }
+
+  it("writes deadzones as the app stores them, out of 512, and the threshold and cones", () => {
+    const stick = stickWith({
+      deadzone_lower: 10,
+      deadzone_upper: 5,
+      threshold: 7,
+      cone_vertical: 30,
+      cone_horizontal: 60,
+    });
+    const analog = stick?.analogSettings;
+    expect([analog?.lowerLimit, analog?.upperLimit, analog?.sensitivity]).toEqual([51, 26, 7]);
+    expect(analog?.analogCones).toEqual({ verticalCone: 30, horizontalCone: 60 });
+  });
+
+  it("leaves what the profile does not give as the template had it", () => {
+    const analog = stickWith({ deadzone_lower: 10 })?.analogSettings;
+    expect(analog?.sensitivity).toBe(3);
+    expect(analog?.upperLimit).toBe(0);
+  });
+
+  it("refuses deadzones that leave no travel, and values out of the app's range", () => {
+    expect(() => stickWith({ deadzone_lower: 60, deadzone_upper: 40 })).toThrow(/no travel/);
+    expect(() => stickWith({ threshold: 26 })).toThrow(/0 to 25/);
+    expect(() => stickWith({ cone_vertical: 90 })).toThrow(/1 to 89/);
+    expect(() => stickWith({ mouse_sensitivity: 11 })).toThrow(/1 to 10/);
+  });
+});

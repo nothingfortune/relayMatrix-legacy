@@ -23,7 +23,11 @@ import {
   SLOT_FIELDS,
   STICK_DIRECTIONS,
   STICK_MODE_CODES,
+  MAX_MOUSE_SENSITIVITY,
+  MAX_THRESHOLD,
+  STICK_TRAVEL,
 } from "../types/azeron.js";
+import type { AnalogSettings } from "../types/azeron.js";
 import type { ActionSpec, KeySlotSpec, PositionSpec, SlotSpec } from "../types/profile.js";
 import { BindingError, blankRecord, resolveSlot, wheelFields } from "./binding.js";
 import * as keys from "./keys.js";
@@ -44,6 +48,46 @@ function neutralize(record: InputRecord, isStick: boolean): void {
   if (isStick && record.analogSettings) {
     const live = activeAnalogKeys(record.analogSettings);
     for (const direction of STICK_DIRECTIONS) live[direction][0] = 0;
+  }
+}
+
+function wholeIn(position: string, field: string, value: number, low: number, high: number): void {
+  if (!Number.isInteger(value) || value < low || value > high) {
+    throw new CompileError(
+      `${position}: ${field} ${String(value)} is not a whole number from ${String(low)} to ${String(high)}`,
+    );
+  }
+}
+
+/**
+ * The stick's tuning, field by field, only where the profile gives one: the template's
+ * values pass through otherwise, as they always have.
+ */
+function applyTuning(analog: AnalogSettings, spec: PositionSpec, position: string): void {
+  const lower = spec.deadzone_lower;
+  const upper = spec.deadzone_upper;
+  if (lower !== undefined) wholeIn(position, "deadzone_lower", lower, 0, 99);
+  if (upper !== undefined) wholeIn(position, "deadzone_upper", upper, 0, 99);
+  if ((lower ?? 0) + (upper ?? 0) >= 100) {
+    throw new CompileError(`${position}: the two deadzones together leave the stick no travel`);
+  }
+  if (lower !== undefined) analog.lowerLimit = Math.round((lower * STICK_TRAVEL) / 100);
+  if (upper !== undefined) analog.upperLimit = Math.round((upper * STICK_TRAVEL) / 100);
+  if (spec.threshold !== undefined) {
+    wholeIn(position, "threshold", spec.threshold, 0, MAX_THRESHOLD);
+    analog.sensitivity = spec.threshold;
+  }
+  if (spec.cone_vertical !== undefined || spec.cone_horizontal !== undefined) {
+    const cones = (analog.analogCones ?? {}) as Record<string, unknown>;
+    if (spec.cone_vertical !== undefined) {
+      wholeIn(position, "cone_vertical", spec.cone_vertical, 1, 89);
+      cones.verticalCone = spec.cone_vertical;
+    }
+    if (spec.cone_horizontal !== undefined) {
+      wholeIn(position, "cone_horizontal", spec.cone_horizontal, 1, 89);
+      cones.horizontalCone = spec.cone_horizontal;
+    }
+    analog.analogCones = cones;
   }
 }
 
@@ -77,13 +121,15 @@ function applyStick(
   // is kept in the others so a stick switched away from the mouse and back keeps it.
   if (spec.mouse_sensitivity !== undefined) {
     const value = spec.mouse_sensitivity;
-    if (!Number.isInteger(value) || value < 1 || value > 255) {
+    if (!Number.isInteger(value) || value < 1 || value > MAX_MOUSE_SENSITIVITY) {
       throw new CompileError(
-        `${position}: mouse_sensitivity ${String(value)} is not a whole number from 1 to 255`,
+        `${position}: mouse_sensitivity ${String(value)} is not a whole number from 1 to ` +
+          String(MAX_MOUSE_SENSITIVITY),
       );
     }
     analogSettings.mouseSensitivity = value;
   }
+  applyTuning(analogSettings, spec, position);
   const live: AnalogDirections = activeAnalogKeys(analogSettings);
 
   for (const direction of STICK_DIRECTIONS) {
