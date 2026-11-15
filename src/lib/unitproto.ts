@@ -578,17 +578,13 @@ export function encodeInputRecord(slot: number, input: InputRecord): Uint8Array 
 /**
  * A scrolling tap: `[0x23][x][y][interval][yInterval]`, the directions one signed byte each
  * and the intervals two bytes, whole (the export's 100.5 went as 100). There is no hold,
- * hold time or turbo for it. Seen for up and right only (2026-11-13), so a negative
- * direction -- down or left -- is refused until a capture shows how it goes.
+ * hold time or turbo for it. Up and right were captured on 2026-11-13, and down and left on
+ * 2026-11-15 (the right unit): the same record with the direction as a negative byte, so
+ * down is y `ff` and left is x `ff`, the two intervals swapped for the horizontal ones.
  */
 function encodeWheelTap(w: Writer, input: InputRecord, where: string): void {
   const x = num(input.x, 0);
   const y = num(input.y, 0);
-  if (x < 0 || y < 0) {
-    throw new ProtocolError(
-      `${where}: scroll down or left is not written to a unit until a capture shows how the app sends it`,
-    );
-  }
   w.u8(TYPE_WHEEL, `${where} type`);
   w.i8(x, `${where} x`);
   w.i8(y, `${where} y`);

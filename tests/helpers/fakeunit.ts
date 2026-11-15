@@ -121,6 +121,12 @@ function store(write: Uint8Array): Uint8Array {
     out.push(rotate, lockAngle, lockSize, right, 0, 0);
     return Uint8Array.from(out);
   }
+  // Scroll: a unit hands it back in a layout nobody has decoded. What is stored here after
+  // the types is the fake's own filler, which no code reads (the record is `undecoded`).
+  if (write[4] === 0x23) {
+    out.push(0x23, 6, 6, ...write.slice(5, 11));
+    return Uint8Array.from(out);
+  }
   const blocks = [4, 24, 46];
   const types = blocks.map((at) => write[at] ?? 0);
   out.push(...types);

@@ -428,15 +428,6 @@ export class UnitSession {
   async writeProfile(plan: WritePlan): Promise<WriteReport> {
     const { slot, name, profile, unknownPins } = plan;
     const inputs = profile.inputs.filter((input) => isWritableInput(input, unknownPins));
-    // A slot is checked by reading it back, and how a unit stores scroll is not captured
-    // yet: a write that cannot be checked is not made.
-    const scrolling = inputs.find((input) => input.types[0] === "35");
-    if (scrolling !== undefined) {
-      throw new ProtocolError(
-        `input ${String(scrolling.id)} scrolls, and a unit's scroll cannot be read back to ` +
-          "check yet: import this layout through the Azeron app for now",
-      );
-    }
     // Everything is encoded before anything is sent, so a profile the unit cannot hold
     // fails here and the slot is untouched.
     const records = inputs.map((input) => ({ input, bytes: encodeInputRecord(slot, input) }));
@@ -515,8 +506,22 @@ export class UnitSession {
     const differences = compareStored(inputs, stored);
     const problems = differences.map(describeDifference);
     if (stored.name !== name) problems.push(`the slot is named "${stored.name}", not "${name}"`);
-    this.log(`slot ${String(slot)} read back: ${String(problems.length)} difference(s)`);
-    return { slot, written, stored, problems, differences };
+    // A record of a kind this cannot read back (scroll) is there, with the pins and type
+    // written, but its contents cannot be compared. It is reported, with the bytes the unit
+    // holds, so a layout for it can be learned from a real write.
+    const wanted = new Set(inputs.map((input) => input.id));
+    const unchecked = stored.inputs
+      .filter((held) => held.undecoded === true && held.types[0] === "35" && wanted.has(held.id))
+      .map((held) => ({
+        id: held.id,
+        raw: Array.from(held.raw, (byte) => byte.toString(16).padStart(2, "0")).join(""),
+      }));
+    this.log(
+      `slot ${String(slot)} read back: ${String(problems.length)} difference(s)` +
+        (unchecked.length > 0 ? `, ${String(unchecked.length)} not readable` : ""),
+    );
+    for (const record of unchecked) this.log(`input ${String(record.id)} stored as ${record.raw}`);
+    return { slot, written, stored, problems, differences, unchecked };
   }
 
   /** One input record, every part acknowledged. Sent again, whole, if an answer is lost. */
@@ -560,6 +565,11 @@ export interface WriteReport {
   /** Every way the slot as read back differs from what was written. Empty is success. */
   problems: string[];
   differences: SlotDifference[];
+  /**
+   * Records written that came back in a layout this cannot read (scroll), so they are not
+   * compared: their id, and the bytes the unit holds. Not a difference.
+   */
+  unchecked: { id: number; raw: string }[];
 }
 
 const KEY_LISTS = [
@@ -677,6 +687,13 @@ export function compareStored(
     if (isStickRecord(input)) {
       if (held.types[0] !== input.types[0]) differ("types[0]", held.types[0], input.types[0]);
       compareStick(input, held, differ);
+      continue;
+    }
+    if (held.undecoded === true && input.types[0] === "35") {
+      // Scroll has one block, so what the unit reports for the long and double types is not
+      // known. Only the pins and the tap's type can be compared; `writeProfile` reports the
+      // key as unchecked.
+      if (held.types[0] !== input.types[0]) differ("types[0]", held.types[0], input.types[0]);
       continue;
     }
     if (held.types.join() !== input.types.join())

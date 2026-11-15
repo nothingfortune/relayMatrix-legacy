@@ -23,6 +23,7 @@ import { decompile } from "../../../src/lib/decompile.js";
 import { loadProfile, loadTemplate } from "../../../src/lib/io.js";
 import { Game } from "../../../src/lib/model.js";
 import { Profile } from "../../../src/lib/model-core.js";
+import type { StoredProfile } from "../../../src/lib/unitproto.js";
 import {
   ProtocolError,
   decodeStoredRecord,
@@ -76,10 +77,29 @@ describe("the unit's records for Xbox output, scroll and the stick's modes", () 
     expect(one("wheel-layer", 13).input.types).toEqual(["6", "6", "22"]);
   });
 
-  it("refuses scroll down or left until a capture shows how they go", () => {
-    const up = structuredClone(one("wheel-layer", 4).input);
-    up.y = -1;
-    expect(() => encodeInputRecord(4, up)).toThrow(ProtocolError);
+  it("sends scroll down and left as the app did on the right unit: a negative byte", () => {
+    const down = one("write-right", 13);
+    const left = one("write-right", 38);
+    expect([down.input.x, down.input.y]).toEqual([0, -1]);
+    expect([left.input.x, left.input.y]).toEqual([-1, 0]);
+    // [slot id pin pinTwo] then type 0x23, x, y, interval and yInterval, two bytes each.
+    expect(down.wire.slice(8, 8 + 14)).toBe("2300ff00960070");
+    expect(left.wire.slice(8, 8 + 14)).toBe("23ff0000700096");
+    expect(hex(encodeInputRecord(down.slot, down.input))).toBe(down.wire);
+    expect(hex(encodeInputRecord(left.slot, left.input))).toBe(left.wire);
+  });
+
+  it("sends the Xbox stick on the right unit with its side set, as the app did", () => {
+    const stick = one("write-right", 24);
+    expect(stick.input.types[0]).toBe("21");
+    expect(stick.input.analogSettings?.isRightAnalog).toBe(true);
+    expect(hex(encodeInputRecord(stick.slot, stick.input))).toBe(stick.wire);
+  });
+
+  it("still refuses a direction that does not fit a signed byte", () => {
+    const far = structuredClone(one("write-right", 13).input);
+    far.y = -200;
+    expect(() => encodeInputRecord(3, far)).toThrow(ProtocolError);
   });
 
   it("refuses an Xbox button that is not one button", () => {
@@ -232,18 +252,30 @@ describe("compiling and decompiling them", () => {
 describe("reading a unit's slot that holds what this cannot decode", () => {
   it("keeps going rather than misreading the record or running off its end", () => {
     // A stored scroll record: its id, pins and types, then a layout not captured yet.
-    const stored = Uint8Array.from([2, 4, 5, 255, 0x23, 6, 6, 0, 1, 0]);
+    const wanted = structuredClone(one("wheel-layer", 4).input);
+    const stored = Uint8Array.from([
+      2,
+      wanted.id,
+      wanted.pinOne,
+      wanted.pinTwo,
+      0x23,
+      6,
+      6,
+      0,
+      1,
+      0,
+    ]);
     const input = decodeStoredRecord(stored);
     expect(input.undecoded).toBe(true);
     expect(input.types).toEqual(["35", "6", "6"]);
-    const wanted = structuredClone(one("wheel-layer", 4).input);
-    const differences = compareStored([wanted], {
-      slot: 5,
-      name: "Recon",
-      inputs: [input],
-      settings: null,
-    });
-    expect(differences.map((difference) => difference.field)).toContain("record");
+    const slot = { slot: 5, name: "Recon", inputs: [input], settings: null };
+    // What was read -- the pins and the tap's type -- agrees, and the rest cannot be compared,
+    // which is not a difference (`writeProfile` reports it as unchecked).
+    expect(compareStored([wanted], slot)).toEqual([]);
+    // A scroll key that came back on other pins is still a difference.
+    const moved = structuredClone(wanted);
+    moved.pinOne += 1;
+    expect(compareStored([moved], slot).map((difference) => difference.field)).toContain("pins");
   });
 
   it("reads an Xbox button and trigger back as the values that were written", () => {
@@ -431,7 +463,7 @@ describe("writing them to a unit and reading the slot back", () => {
     expect(compareStored(keysWanted, xboxSlot).length).toBeGreaterThan(0);
   });
 
-  it("refuses a layout with scroll before sending anything", async () => {
+  it("writes a layout with scroll, and says which keys it could not read back", async () => {
     const { fake, session } = await ready();
     const profile = akimboProfile();
     const inputs = withOnboard();
@@ -440,10 +472,74 @@ describe("writing them to a unit and reading the slot back", () => {
     Object.assign(key, { types: ["35", "11", "11"], x: 0, y: 1, interval: 150, yInterval: 75 });
     profile.inputs = inputs;
     fake.received.length = 0;
-    await expect(
-      session.writeProfile({ slot: 2, name: "ES2 akimbo", profile, unknownPins: [0, 28, 29] }),
-    ).rejects.toThrow(/cannot be read back/);
-    expect(fake.received).toHaveLength(0);
+    const report = await session.writeProfile({
+      slot: 2,
+      name: "ES2 akimbo",
+      profile,
+      unknownPins: [0, 28, 29],
+    });
+    expect(fake.received.length).toBeGreaterThan(0);
+    // Not a difference: the unit holds the scroll key, its contents just cannot be compared.
+    expect(report.problems).toEqual([]);
+    expect(report.unchecked.map((record) => record.id)).toEqual([key.id]);
+    expect(report.unchecked[0]?.raw).toMatch(/^[0-9a-f]+$/);
+  });
+
+  it("writes scroll down and left, which have a negative direction", async () => {
+    const { session } = await ready();
+    const profile = akimboProfile();
+    const inputs = withOnboard();
+    const keys = inputs.filter((input) => input.types[0] === "1").slice(0, 2);
+    const [down, left] = keys;
+    if (down === undefined || left === undefined) throw new Error("no keys");
+    Object.assign(down, {
+      types: ["35", "11", "11"],
+      x: 0,
+      y: -1,
+      interval: 150,
+      yInterval: 112.5,
+    });
+    Object.assign(left, {
+      types: ["35", "11", "11"],
+      x: -1,
+      y: 0,
+      interval: 112.5,
+      yInterval: 150,
+    });
+    profile.inputs = inputs;
+    const report = await session.writeProfile({
+      slot: 2,
+      name: "ES2 akimbo",
+      profile,
+      unknownPins: [0, 28, 29],
+    });
+    expect(report.problems).toEqual([]);
+    expect(report.unchecked.map((record) => record.id).sort()).toEqual([down.id, left.id].sort());
+  });
+
+  it("still sees a scroll key that came back on another pin or as another kind", () => {
+    const wanted = structuredClone(one("write-right", 13).input);
+    const stored = (pinOne: number, tap: number): StoredProfile => ({
+      slot: 3,
+      name: "Recon",
+      inputs: [decodeStoredRecord(Uint8Array.from([2, wanted.id, pinOne, 255, tap, 6, 6, 0, 0]))],
+      settings: null,
+    });
+    expect(compareStored([wanted], stored(wanted.pinOne, 0x23))).toEqual([]);
+    expect(compareStored([wanted], stored(wanted.pinOne + 1, 0x23)).length).toBeGreaterThan(0);
+    expect(compareStored([wanted], stored(wanted.pinOne, 0x1e)).length).toBeGreaterThan(0);
+  });
+
+  it("does not let a record this cannot read pass for a key that was written", () => {
+    // Only scroll is let off for what it cannot be compared on; a key whose stored type
+    // came back as something unreadable is a difference, as a corrupted write must be.
+    const key = structuredClone(one("xinput", 15).input);
+    const bad = decodeStoredRecord(
+      Uint8Array.from([2, key.id, key.pinOne, key.pinTwo, 0x1e, 6, 6, 0]),
+    );
+    expect(bad.undecoded).toBe(true);
+    const found = compareStored([key], { slot: 3, name: "Recon", inputs: [bad], settings: null });
+    expect(found.length).toBeGreaterThan(0);
   });
 });
 

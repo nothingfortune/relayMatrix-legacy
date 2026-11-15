@@ -687,9 +687,10 @@ reports; each hand goes into the slot that already has the layout's name.
 
 - Write to units sends Xbox buttons and triggers and the stick's three modes, each checked
   byte for byte against the app's own write (`tests/fixtures/unit-protocol/onboard-112.json`).
-  It refuses a layout with scroll: how a unit stores scroll is not captured, so the slot
-  could not be read back to check. A stored record of a type it cannot read
-  (`decodeStoredRecord`) comes back `undecoded`, never misread.
+  Scroll goes too, down and left included (captured 2026-11-15), but how a unit stores it is
+  not captured: a stored record of a type it cannot read (`decodeStoredRecord`) comes back
+  `undecoded`, never misread, the slot's check compares only its id, pins and tap type, and
+  the report lists it as `unchecked` with the bytes the unit holds (the editor logs them).
 - `hostReports` sends only the eleven commands the app was seen to send, in the shapes it sent
   them. Reset, DFU, the device id and the details save cannot be built. Do not add a command
   to `SENDABLE_COMMANDS` without a capture of the app sending it.

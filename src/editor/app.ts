@@ -4371,6 +4371,11 @@ function writeAll(run: WriteRun): void {
         unitLog(
           `${unit}: slot ${String(slot)} written, ${String(report.problems.length)} difference(s) on reading back`,
         );
+        // What a unit holds for scroll is not decoded, so its bytes go to the log, success or
+        // not: that is how its stored layout gets learned.
+        for (const record of report.unchecked) {
+          unitLog(`${unit}: input ${String(record.id)} stored as ${record.raw}`);
+        }
         // As the app does after a write: the unit runs the slot it was just given. Only
         // when the slot read back as written; a slot that did not is not one to play on.
         // Which slot it runs is asked, not remembered from connecting: the profile button
@@ -4682,7 +4687,12 @@ function renderWriteBar(run: WriteRun): HTMLElement {
         bar.append(
           el("div", { class: "check-verdict ok" }, [
             `${unit}: slot ${String(report.slot)} now holds "${report.stored.name}" ` +
-              `(${String(report.written)} controls), read back as written.`,
+              `(${String(report.written)} controls), read back as written` +
+              (report.unchecked.length > 0
+                ? `, except ${String(report.unchecked.length)} scroll ` +
+                  (report.unchecked.length === 1 ? "key" : "keys") +
+                  ", which were sent but cannot be read back."
+                : "."),
           ]),
         );
       } else if (report !== null) {
