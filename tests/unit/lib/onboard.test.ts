@@ -489,10 +489,16 @@ describe("a layout that sends Xbox output and keys together", () => {
 
 describe("a stick's tuning", () => {
   const SINGLE_V5 = "games/SpaceSims/everspace/profiles/single-v5.yaml";
-  function stickWith(extra: Partial<PositionSpec>): InputRecord | undefined {
+  function stickWith(
+    extra: Partial<PositionSpec>,
+    inTemplate: Record<string, number> = {},
+  ): InputRecord | undefined {
     const game = new Game("games/SpaceSims/everspace");
     const profile = loadProfile(SINGLE_V5, game);
     const template = loadTemplate("templates/everspace2-v5.json");
+    const stickPin = profile.device.positions.stick?.pin;
+    const held = template.profiles[0]?.inputs.find((input) => input.pinOne === stickPin);
+    if (held?.analogSettings) Object.assign(held.analogSettings, inTemplate);
     const data = structuredClone(profile.data);
     data.positions.stick = { ...data.positions.stick, ...extra };
     const edited = new Profile(data, profile.device, { path: profile.path, game });
@@ -522,6 +528,12 @@ describe("a stick's tuning", () => {
 
   it("refuses deadzones that leave no travel, and values out of the app's range", () => {
     expect(() => stickWith({ deadzone_lower: 60, deadzone_upper: 40 })).toThrow(/no travel/);
+    // A deadzone the profile leaves out is the template's, and counts.
+    expect(() => stickWith({ deadzone_lower: 60 }, { upperLimit: 256 })).toThrow(/no travel/);
+    expect(() => stickWith({ deadzone_upper: 60 }, { lowerLimit: 256 })).toThrow(/no travel/);
+    expect(stickWith({ deadzone_lower: 10 }, { upperLimit: 256 })?.analogSettings?.lowerLimit).toBe(
+      51,
+    );
     expect(() => stickWith({ threshold: 26 })).toThrow(/0 to 25/);
     expect(() => stickWith({ cone_vertical: 90 })).toThrow(/1 to 89/);
     expect(() => stickWith({ mouse_sensitivity: 11 })).toThrow(/1 to 10/);

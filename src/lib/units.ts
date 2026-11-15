@@ -114,6 +114,36 @@ function readRecord(record: InputRecord, isStick: boolean): PositionSpec {
   return spec;
 }
 
+/** A stick's tuning as the unit stores it; `decompilePosition` leaves it out on purpose. */
+function tuningOf(record: InputRecord): Record<string, number> {
+  const found: Record<string, number> = {};
+  const analog = record.analogSettings;
+  if (analog === undefined) return found;
+  const cones = analog.analogCones as Record<string, unknown> | undefined;
+  const fields: [string, unknown][] = [
+    ["lower deadzone", analog.lowerLimit],
+    ["upper deadzone", analog.upperLimit],
+    ["threshold", analog.sensitivity],
+    ["vertical cone", cones?.verticalCone],
+    ["horizontal cone", cones?.horizontalCone],
+  ];
+  for (const [name, value] of fields) if (typeof value === "number") found[name] = value;
+  return found;
+}
+
+/**
+ * What differs in the tuning of two sticks, in words. A setting only one side holds is not
+ * compared: the app's copy may be stored without it, and that says nothing about the layout.
+ */
+function tuningDifference(mine: InputRecord, other: InputRecord): { want: string; have: string } {
+  const want = tuningOf(mine);
+  const have = tuningOf(other);
+  const differing = Object.keys(want).filter((name) => name in have && want[name] !== have[name]);
+  const text = (found: Record<string, number>): string =>
+    differing.map((name) => `${name} ${String(found[name])}`).join(", ");
+  return { want: text(want), have: text(have) };
+}
+
 /**
  * Every control of `device` whose record differs between the compiled layout and the app's
  * copy. Pins the device does not name, unidentified pins and records that are not keys (the
@@ -144,15 +174,21 @@ export function compareUnit(
     const want = readRecord(mine, isStick);
     const other = theirs.get(pin);
     const have = other === undefined ? null : readRecord(other, isStick);
-    if (have !== null && canonical(want) === canonical(have)) continue;
+    const tuning = isStick && other !== undefined ? tuningDifference(mine, other) : null;
+    const tuned = tuning !== null && tuning.want !== "";
+    if (have !== null && !tuned && canonical(want) === canonical(have)) continue;
     const labelOnly =
       have !== null &&
+      !tuned &&
       canonical(withoutKey(want, "label")) === canonical(withoutKey(have, "label"));
     differences.push({
       position,
       where: positionLabel(position),
-      layout: named(want, actions),
-      app: have === null ? "no such key" : named(have, actions),
+      layout: named(want, actions) + (tuned ? ` -- tuned: ${tuning.want}` : ""),
+      app:
+        have === null
+          ? "no such key"
+          : named(have, actions) + (tuned ? ` -- tuned: ${tuning.have}` : ""),
       labelOnly,
     });
   }

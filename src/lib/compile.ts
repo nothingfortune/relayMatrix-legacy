@@ -68,11 +68,21 @@ function applyTuning(analog: AnalogSettings, spec: PositionSpec, position: strin
   const upper = spec.deadzone_upper;
   if (lower !== undefined) wholeIn(position, "deadzone_lower", lower, 0, 99);
   if (upper !== undefined) wholeIn(position, "deadzone_upper", upper, 0, 99);
-  if ((lower ?? 0) + (upper ?? 0) >= 100) {
+  // A deadzone the profile leaves out is the template's, so the travel check is on what
+  // the stick will actually hold, in the unit's own scale.
+  const stored = (given: number | undefined, kept: unknown): number =>
+    given !== undefined
+      ? Math.round((given * STICK_TRAVEL) / 100)
+      : typeof kept === "number"
+        ? kept
+        : 0;
+  const lowerLimit = stored(lower, analog.lowerLimit);
+  const upperLimit = stored(upper, analog.upperLimit);
+  if (lowerLimit + upperLimit >= STICK_TRAVEL) {
     throw new CompileError(`${position}: the two deadzones together leave the stick no travel`);
   }
-  if (lower !== undefined) analog.lowerLimit = Math.round((lower * STICK_TRAVEL) / 100);
-  if (upper !== undefined) analog.upperLimit = Math.round((upper * STICK_TRAVEL) / 100);
+  if (lower !== undefined) analog.lowerLimit = lowerLimit;
+  if (upper !== undefined) analog.upperLimit = upperLimit;
   if (spec.threshold !== undefined) {
     wholeIn(position, "threshold", spec.threshold, 0, MAX_THRESHOLD);
     analog.sensitivity = spec.threshold;
