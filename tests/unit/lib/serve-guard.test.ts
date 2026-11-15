@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { repoPath } from "../../../src/config/paths.js";
 import {
   checkRequest,
+  EDITOR_HOST,
   guardedListener,
   readBody,
   SaveRejected,
@@ -56,6 +57,23 @@ describe("checkRequest", () => {
       expect(verdict.ok, String(host)).toBe(false);
       if (!verdict.ok) expect(verdict.status).toBe(403);
     }
+  });
+
+  it("answers the editor's own .localhost name, and no other one", () => {
+    const named = (name: string): RequestFacts => ({
+      ...post,
+      host: `${name}:${String(PORT)}`,
+      origin: `http://${name}:${String(PORT)}`,
+    });
+    expect(checkRequest(named(EDITOR_HOST)).ok).toBe(true);
+    // Any other name that merely ends in .localhost is not this server's.
+    expect(checkRequest(named("evil.localhost")).ok).toBe(false);
+    expect(checkRequest(named(`${EDITOR_HOST}.evil.example`)).ok).toBe(false);
+    // The port is still checked, and so is the Origin against the name it was opened under.
+    expect(checkRequest({ ...named(EDITOR_HOST), host: `${EDITOR_HOST}:9999` }).ok).toBe(false);
+    expect(
+      checkRequest({ ...named(EDITOR_HOST), origin: `http://localhost:${String(PORT)}` }).ok,
+    ).toBe(false);
   });
 
   it("refuses a loopback name on the wrong port", () => {

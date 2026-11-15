@@ -231,6 +231,11 @@ get back into the repo.
   only way out is a download you then copy in by hand.
 - `azeron serve` serves the same page over HTTP, where it can POST an edit straight into
   the repo and get the linter's verdict back. The header says which mode the page is in.
+  It is opened at `http://relaymatrix.localhost:<port>` (`EDITOR_HOST` in `lib/serve.ts`):
+  browsers resolve any `*.localhost` name to the machine and treat it as a secure context, so
+  it needs no hosts-file entry. `checkRequest` accepts that one name, not every `.localhost`,
+  beside `localhost` and `127.0.0.1`. The page's saved place is per origin, so the first
+  open under the name starts at the default game.
   `azeron stop` ends it: it POSTs to the server's `/api/stop` (behind the same Host,
   content-type and Origin checks as a save), which replies and then exits, and waits for the
   port to go quiet. It says so when nothing is running, and when something answers that does
