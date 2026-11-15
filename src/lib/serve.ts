@@ -143,7 +143,14 @@ export interface RequestFacts {
 
 export type RequestVerdict = { ok: true } | { ok: false; status: number; error: string };
 
-const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+/**
+ * The name the editor is opened under. Browsers resolve any `*.localhost` name to the
+ * machine itself and treat it as a secure context (which WebHID needs), so it takes no
+ * hosts-file entry. Only this one name is accepted, not every `*.localhost`.
+ */
+export const EDITOR_HOST = "relaymatrix.localhost";
+
+const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "[::1]", EDITOR_HOST]);
 
 /** Split a Host header into a lower-case name and a port, or null when it is not one. */
 function splitHost(value: string): { name: string; port: number } | null {
@@ -159,8 +166,9 @@ function splitHost(value: string): { name: string; port: number } | null {
  * The server writes into the repo and into the game's config, so it must only answer the
  * page it served. Three checks, each against a different attack:
  *
- * - the Host header must be a loopback name on the listening port, which stops DNS
- *   rebinding (a hostile name that resolves to 127.0.0.1 still arrives with its own name);
+ * - the Host header must be a loopback name (or the editor's own `.localhost` name) on the
+ *   listening port, which stops DNS rebinding (a hostile name that resolves to 127.0.0.1
+ *   still arrives with its own name);
  * - a state-changing request must carry `content-type: application/json`, which a
  *   cross-site form cannot send, and which a cross-site script can send only after a CORS
  *   preflight the server never grants;
