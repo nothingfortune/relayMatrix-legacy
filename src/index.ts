@@ -57,6 +57,7 @@ import {
   preserveHeader,
   resolveSavePath,
   guardedListener,
+  EDITOR_HOST,
   readBody,
   STOP_PATH,
   stopServer,
@@ -1117,14 +1118,15 @@ function cmdServe(port: number, host: string, open = false): number {
 `);
   });
   server.listen(port, host, () => {
-    out(`editor on http://localhost:${String(port)}`);
+    out(`editor on http://${EDITOR_HOST}:${String(port)}`);
+    out(`  (http://localhost:${String(port)} reaches the same server)`);
     if (!LOOPBACK_BINDINGS.has(host)) {
       out(`  WARNING: listening on ${host}. Anyone who can reach it can write into the repo.`);
     }
     out("  Saving writes straight into the repo and reports what the linter says.");
     out(`  Ctrl-C to stop, or \`azeron stop --port ${String(port)}\` from another terminal.`);
     if (open) {
-      const url = `http://localhost:${String(port)}`;
+      const url = `http://${EDITOR_HOST}:${String(port)}`;
       const ctx = { platform: process.platform, wsl: isWsl(), env: process.env };
       if (openInChromium(url, ctx) === null) {
         out(`  Open ${url} in Chrome or Edge: no copy of either was found to open it in.`);

@@ -6,6 +6,12 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **The editor opens at `relaymatrix.localhost`.** `azeron serve` prints and opens
+  `http://relaymatrix.localhost:4173` instead of a bare address; `localhost` and `127.0.0.1`
+  still reach it. Browsers resolve `*.localhost` to the machine, so nothing is added to the
+  hosts file, and the server accepts that one name only. The page's remembered game and tab
+  are kept per address, so the first open under the new name starts at the default.
+
 - **`azeron stop`.** Ends the editor server `serve` started (`--port N`, default 4173), so an
   old one is not left holding the port and serving a stale bundle; it says so when nothing is
   running, and when something answers that is not an editor server of this version. A second
