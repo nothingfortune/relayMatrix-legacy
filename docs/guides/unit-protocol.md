@@ -193,19 +193,23 @@ the app's own records, and the encoder reproduces every one byte for byte):
 - `{wheel: up, speed: 33}` on a tap. The app turns a speed of 0 to 100 into
   `interval = (100 - speed) * 1.5` for the moving axis and 150 for the other, sends the
   interval whole (100.5 went as 100), and stores the direction as `x` 1 right / -1 left and
-  `y` 1 up / -1 down. Up and right were captured; **down and left are refused on a unit**
-  until a capture shows how a negative direction goes. **No write with scroll is made at
-  all** yet, because a write is checked by reading the slot back and how a unit stores a
-  scroll record is not captured; a layout with scroll goes through the Azeron app for now.
+  `y` 1 up / -1 down, each as a signed byte (down is y `ff`, left is x `ff`). Up and right
+  were captured on 2026-11-13 and down and left on 2026-11-15 (the right unit, firmware 112):
+  the same record. A write with scroll is made like any other. How a unit **stores** a scroll
+  record is still not captured, so the read-back keeps it undecoded: the slot's check compares
+  its id, pins and tap type, reports the key as one it could not read back, and the editor
+  logs the bytes the unit holds so the layout can be learned from a real write.
 - A stick's `mode: xbox` (type 21) and `mode: mouse` (type 40, `mouse_sensitivity` into the
   byte at 16; the owner's "super sensitive" stored 2). Which Xbox stick a right unit's
-  drives is not captured: the left unit's export named the left stick.
+  drives: the right unit's write (2026-11-15) sent the Xbox stick with `isRightAnalog` set,
+  as every right-unit write does, so only a left-unit write of the same stick can show whether
+  that byte picks the side.
 - **Reading them back is inferred, not captured**: an Xbox button or trigger is read where
   a key's code is stored (little-endian, as every stored value), and a stick in Xbox or
   mouse mode in the keyboard stick's layout with its own type byte. A unit that stores them
   otherwise shows as a difference after the write, never as a pass.
 - A record of a type whose stored layout is not known (scroll, so far) is kept by its id,
-  pins and types and reported as one that cannot be checked, rather than misread: reading
+  pins and types and reported as one that cannot be fully checked, rather than misread: reading
   on could run off its end and stop every slot after it from being read.
 - App 2.0.3 exports the stick's hold key by name (`"ShiftLeft"`) and sends it as that key's
   code.

@@ -6,6 +6,13 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Write to units sends scroll, down and left included.** The Azeron app was recorded
+  writing all four scroll directions to the right unit (firmware 112), and the encoder
+  reproduces them byte for byte, so the checks that refused scroll are gone. How a unit
+  stores scroll is still not captured, so after a write the bar says how many scroll keys
+  were sent but cannot be read back, and the editor logs the bytes the unit holds. The
+  scroll-on-a-long-press refusal stays: nothing recorded shows how that goes.
+
 - **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
   deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
   own terms and ranges, read from its interface code; an empty field keeps what the stick
@@ -33,10 +40,8 @@ Every profile change, and why. `playtests.md` records what each layout felt like
   send an Xbox button or trigger (`tap: {xinput: A}`, on any press) or scroll
   (`tap: {wheel: up, speed: 33}`), and the stick can be an Xbox stick (`mode: xbox`) or move
   the pointer (`mode: mouse`, with `mouse_sensitivity`). Each was recorded from the Azeron
-  app and is written byte for byte as it writes it. Not yet: scroll through Write to units
-  (it cannot be read back to check yet -- import through the app), scroll down or left on a
-  unit, and which Xbox stick a right unit's drives (it should follow the stick's side
-  setting). How a unit stores the new kinds is inferred, so the read-back after a write
+  app and is written byte for byte as it writes it. Not yet: which Xbox stick a right unit's
+  drives (it should follow the stick's side setting). How a unit stores the new kinds is inferred, so the read-back after a write
   would show a difference rather than pass if it stores them otherwise. Everspace 2 still
   refuses any stick but
   keyboard; with mouse and Xbox modes now known, that rule would otherwise have let them
