@@ -365,6 +365,19 @@ interface StopOptions {
   fetchImpl?: typeof fetch;
   /** How long to wait for the port to go quiet once the server has said it is stopping. */
   settleMs?: number;
+  /**
+   * Where to look, in order. By default both loopback families, since a server started with
+   * `--host ::1` is not reached on 127.0.0.1; `--host` names the one `serve` was given.
+   */
+  hosts?: readonly string[];
+}
+
+/** Both loopback families: what `serve` binds by default, and what `--host ::1` binds. */
+export const LOOPBACK_HOSTS: readonly string[] = ["127.0.0.1", "[::1]"];
+
+/** A host as it goes in a URL: an IPv6 literal needs its brackets. */
+export function urlHost(host: string): string {
+  return host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
 }
 
 const refused = (error: unknown): boolean => {
@@ -374,24 +387,34 @@ const refused = (error: unknown): boolean => {
 };
 
 /**
- * Ask the editor server on `port` (loopback) to stop, and wait until its port is quiet. The
- * request carries no credentials and gets the same Host and content-type checks as a save,
- * so a page in a browser cannot send it; this is the same-machine CLI doing it.
+ * Ask the editor server on `port` to stop, and wait until its port is quiet. The request
+ * carries no credentials and gets the same Host and content-type checks as a save, so a page
+ * in a browser cannot send it; this is the same-machine CLI doing it.
+ *
+ * Each of `hosts` is tried in turn and the first that answers at all is the server. Only a
+ * refusal on every one of them is "nothing is running": a server on `::1` must not be
+ * reported absent because 127.0.0.1 refused.
  */
 export async function stopServer(port: number, options: StopOptions = {}): Promise<StopResult> {
   const doFetch = options.fetchImpl ?? fetch;
-  const base = `http://127.0.0.1:${String(port)}`;
-  let reply: Response;
-  try {
-    reply = await doFetch(`${base}${STOP_PATH}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-      signal: AbortSignal.timeout(3000),
-    });
-  } catch (error) {
-    return refused(error) ? { kind: "nothing" } : { kind: "no-answer", reason: messageOf(error) };
+  let base = "";
+  let reply: Response | null = null;
+  for (const host of options.hosts ?? LOOPBACK_HOSTS) {
+    const tried = `http://${urlHost(host)}:${String(port)}`;
+    try {
+      reply = await doFetch(`${tried}${STOP_PATH}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+        signal: AbortSignal.timeout(3000),
+      });
+      base = tried;
+      break;
+    } catch (error) {
+      if (!refused(error)) return { kind: "no-answer", reason: messageOf(error) };
+    }
   }
+  if (reply === null) return { kind: "nothing" };
   const stopping = await reply
     .json()
     .then((body: { ok?: unknown; stopping?: unknown }) => {

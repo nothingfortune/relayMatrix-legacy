@@ -71,16 +71,27 @@ says "install refuses without --yes" "Re-run with --yes" ./bin/azeron install ev
 says "install refuses one device id for a pair" "would send profiles for 2 units" \
   ./bin/azeron install everspace --device-id 0 --dry-run
 
-# The editor server and its stop command, on a port nothing else uses.
-stop_port=4399
-./bin/azeron serve --port "$stop_port" >/dev/null 2>&1 &
+# The editor server and its stop command, on a port nothing else is using. The port is one the
+# system hands out, and the server is only stopped once it has said it started: a server
+# that was already on the port would otherwise be the one `stop` shut down.
+stop_port=$(node -e 'const s=require("net").createServer().listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')
+stop_log="$(mktemp)"
+./bin/azeron serve --port "$stop_port" >"$stop_log" 2>&1 &
 serve_pid=$!
 for _ in $(seq 1 50); do
-  curl -s "http://127.0.0.1:$stop_port/api/azeron-app" >/dev/null 2>&1 && break
+  grep -q "editor on" "$stop_log" 2>/dev/null && break
+  grep -q "already in use" "$stop_log" 2>/dev/null && break
   sleep 0.2
 done
-says "stop ends a running editor server" "stopped the editor server on port $stop_port"   ./bin/azeron stop --port "$stop_port"
-says "stop says when nothing is running" "nothing is running on port $stop_port"   ./bin/azeron stop --port "$stop_port"
+if grep -q "editor on" "$stop_log" && ! grep -q "already in use" "$stop_log"; then
+  says "stop ends a running editor server" "stopped the editor server on port $stop_port"     ./bin/azeron stop --port "$stop_port"
+  says "stop says when nothing is running" "nothing is running on port $stop_port"     ./bin/azeron stop --port "$stop_port"
+else
+  echo "FAIL the test's own editor server did not start on port $stop_port"
+  sed 's/^/     /' "$stop_log" | head -5
+  fails=$((fails + 2))
+fi
 kill "$serve_pid" 2>/dev/null
+rm -f "$stop_log"
 
 exit "$fails"

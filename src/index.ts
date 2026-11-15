@@ -1135,8 +1135,8 @@ function cmdServe(port: number, host: string, open = false): number {
 }
 
 /** Stop the editor server on `port`. The exit code is set once the server has answered. */
-function cmdStop(port: number): number {
-  void stopServer(port).then((result) => {
+function cmdStop(port: number, host: string | undefined): number {
+  void stopServer(port, host === undefined ? {} : { hosts: [host] }).then((result) => {
     switch (result.kind) {
       case "stopped":
         out(`stopped the editor server on port ${String(port)}`);
@@ -1490,8 +1490,9 @@ function usage(): void {
                                   the same editor, able to save back into the repo; it
                                   listens on 127.0.0.1 only unless --host names another;
                                   --open opens it in Chrome or Edge
-  stop [--port N]                 stop the editor server on that port (default 4173), the one
-                                  serve started; says so when nothing is running there
+  stop [--port N] [--host H]      stop the editor server on that port (default 4173), the one
+                                  serve started; looks on 127.0.0.1 and ::1 unless --host
+                                  names where it was started; says so when nothing is there
   probe [--device D]              the press test's profiles, as files; the test itself
                                   runs from the editor's Press test tab
   new <name> --genre G [--units left,right] [--set S] [--game SLUG]
@@ -1607,7 +1608,7 @@ export function main(argv: string[]): number {
         values.open,
       );
     case "stop":
-      return cmdStop(wholeNumber("--port", values.port ?? "4173"));
+      return cmdStop(wholeNumber("--port", values.port ?? "4173"), values.host);
     case "editor":
       return cmdEditor(values.out ?? join(dataDirs.dist, "editor.html"));
     case "probe": {

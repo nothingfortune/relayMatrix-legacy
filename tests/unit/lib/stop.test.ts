@@ -11,12 +11,21 @@ import type { AddressInfo } from "node:net";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { guardedListener, readBody, STOP_PATH, stopServer } from "../../../src/lib/serve.js";
+import {
+  guardedListener,
+  readBody,
+  STOP_PATH,
+  stopServer,
+  urlHost,
+} from "../../../src/lib/serve.js";
 
 const open: Server[] = [];
 
 /** A server that answers like the editor's: the guard first, then a stop route. */
-async function editorLike(onStop: "close" | "linger" | "unknown"): Promise<number> {
+async function editorLike(
+  onStop: "close" | "linger" | "unknown",
+  host = "127.0.0.1",
+): Promise<number> {
   const route = (request: IncomingMessage, response: ServerResponse): void => {
     if (request.method === "POST" && request.url === STOP_PATH && onStop !== "unknown") {
       readBody(request, response, 1_000, () => {
@@ -38,7 +47,7 @@ async function editorLike(onStop: "close" | "linger" | "unknown"): Promise<numbe
   );
   open.push(created);
   await new Promise<void>((done) => {
-    created.listen(0, "127.0.0.1", done);
+    created.listen(0, host, done);
   });
   return (created.address() as AddressInfo).port;
 }
@@ -90,6 +99,45 @@ describe("stopServer", () => {
     }) as unknown as typeof fetch;
     const result = await stopServer(1, { fetchImpl: failing });
     expect(result.kind).toBe("no-answer");
+  });
+});
+
+describe("stopServer and the address a server was started on", () => {
+  /** A server on ::1, or null where this machine has no IPv6 loopback. */
+  async function onIpv6(): Promise<number | null> {
+    try {
+      return await editorLike("close", "::1");
+    } catch {
+      return null;
+    }
+  }
+
+  it("finds a server started with --host ::1, which 127.0.0.1 does not reach", async () => {
+    const port = await onIpv6();
+    if (port === null) return;
+    expect(await stopServer(port)).toEqual({ kind: "stopped" });
+    expect(await stopServer(port)).toEqual({ kind: "nothing" });
+  });
+
+  it("tries each address in turn and uses the first that answers", async () => {
+    const port = await editorLike("close");
+    expect(await stopServer(port, { hosts: ["[::1]", "127.0.0.1"] })).toEqual({
+      kind: "stopped",
+    });
+  });
+
+  it("looks only where it is told, and takes a bare IPv6 literal", async () => {
+    const port = await onIpv6();
+    if (port === null) return;
+    // Only the family the server is not on: nothing there.
+    expect(await stopServer(port, { hosts: ["127.0.0.1"] })).toEqual({ kind: "nothing" });
+    expect(await stopServer(port, { hosts: ["::1"] })).toEqual({ kind: "stopped" });
+  });
+
+  it("writes an IPv6 literal with its brackets in a URL, and leaves a name alone", () => {
+    expect(urlHost("::1")).toBe("[::1]");
+    expect(urlHost("[::1]")).toBe("[::1]");
+    expect(urlHost("localhost")).toBe("localhost");
   });
 });
 
