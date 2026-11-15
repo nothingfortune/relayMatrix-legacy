@@ -107,8 +107,22 @@ export interface PositionSpec {
   double?: SlotSpec;
   /** Stick only: `keyboard`, `xbox` or `mouse`. */
   mode?: string;
-  /** Stick in mouse mode: the pointer speed the unit stores (the app's default is 5). */
+  /**
+   * Stick in mouse mode: the pointer speed as the unit stores it, 1 to 10 and lower faster
+   * (the app's Mouse Speed slider shows 11 minus it; its default is 5).
+   */
   mouse_sensitivity?: number;
+  /**
+   * Stick tuning, written only where given (a template's own values pass through
+   * otherwise): the lower and upper deadzones in percent of the stick's travel, the
+   * sensitivity threshold (0 to 25), and the cones in degrees. The app's names: Lower and
+   * Upper deadzone, Sensitivity Threshold, Vertical and Horizontal cone angle.
+   */
+  deadzone_lower?: number;
+  deadzone_upper?: number;
+  threshold?: number;
+  cone_vertical?: number;
+  cone_horizontal?: number;
   /**
    * An action id, an inline key, or -- for a direction whose keycode this repo does not
    * understand -- the token verbatim, so a build does not write 0 over it.

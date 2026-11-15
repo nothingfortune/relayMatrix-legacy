@@ -6,6 +6,20 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
+  deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
+  own terms and ranges, read from its interface code; an empty field keeps what the stick
+  has, shown beside it. The pointer speed of a mouse stick is shown 1 to 10 as the app's
+  slider shows it (the unit stores 11 minus it, so the owner's "super sensitive" 2 is 9).
+- **The editor sets what a stick sends, and a key can send an Xbox button or scroll.** The
+  Key panel's Stick sends offers keys, an Xbox stick or the mouse pointer (with its speed);
+  each press of a key has "or send instead" for an Xbox button or trigger, and the tap for
+  scroll. Helldivers 2's right stick, which had no keys to send for looking around, can now
+  simply move the pointer.
+- **Keyboard-only sticks are Everspace 2's rule, not every game's.** New games, Helldivers
+  2, Ace Combat 7 and Elite Dangerous had it only because keyboard was the one mode the
+  repo could write. Instead, a layout sending Xbox output and keys together gets a
+  `mixed-input` warning: many games flip between pad and keyboard as both arrive.
 - **The editor is quieter.** A check broken on each direction of one stick, or each press of
   one key, is one entry with the rest folded under "N more like this"; the header and the
   Checks tab count it once. The In-game tab's explanations are folded under "How this page
@@ -82,6 +96,20 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
+  deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
+  own terms and ranges, read from its interface code; an empty field keeps what the stick
+  has, shown beside it. The pointer speed of a mouse stick is shown 1 to 10 as the app's
+  slider shows it (the unit stores 11 minus it, so the owner's "super sensitive" 2 is 9).
+- **The editor sets what a stick sends, and a key can send an Xbox button or scroll.** The
+  Key panel's Stick sends offers keys, an Xbox stick or the mouse pointer (with its speed);
+  each press of a key has "or send instead" for an Xbox button or trigger, and the tap for
+  scroll. Helldivers 2's right stick, which had no keys to send for looking around, can now
+  simply move the pointer.
+- **Keyboard-only sticks are Everspace 2's rule, not every game's.** New games, Helldivers
+  2, Ace Combat 7 and Elite Dangerous had it only because keyboard was the one mode the
+  repo could write. Instead, a layout sending Xbox output and keys together gets a
+  `mixed-input` warning: many games flip between pad and keyboard as both arrive.
 - **The project is relayMatrix.** The repo is `nothingfortune/relayMatrix` (renamed from
   `azeronMappings`; GitHub redirects the old address) and the editor is called relayMatrix:
   one place for Azeron, keyboard-and-mouse and Xbox controller layouts. The CLI is still
@@ -576,6 +604,20 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **Stick tuning in the editor.** A stick's Tuning section sets its lower and upper
+  deadzones (percent of travel), sensitivity threshold and the two cones, in the Azeron app's
+  own terms and ranges, read from its interface code; an empty field keeps what the stick
+  has, shown beside it. The pointer speed of a mouse stick is shown 1 to 10 as the app's
+  slider shows it (the unit stores 11 minus it, so the owner's "super sensitive" 2 is 9).
+- **The editor sets what a stick sends, and a key can send an Xbox button or scroll.** The
+  Key panel's Stick sends offers keys, an Xbox stick or the mouse pointer (with its speed);
+  each press of a key has "or send instead" for an Xbox button or trigger, and the tap for
+  scroll. Helldivers 2's right stick, which had no keys to send for looking around, can now
+  simply move the pointer.
+- **Keyboard-only sticks are Everspace 2's rule, not every game's.** New games, Helldivers
+  2, Ace Combat 7 and Elite Dangerous had it only because keyboard was the one mode the
+  repo could write. Instead, a layout sending Xbox output and keys together gets a
+  `mixed-input` warning: many games flip between pad and keyboard as both arrive.
 - **A reload opens where the page was.** The game, the layout and the tab are kept in the
   browser and restored, instead of the page opening on the first game every time. A game
   or layout that has gone since falls back to the first; a reload on the press test opens

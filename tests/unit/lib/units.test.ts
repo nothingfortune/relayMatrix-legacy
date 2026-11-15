@@ -105,6 +105,31 @@ describe("compareUnit", () => {
     expect(found.find((entry) => entry.position === "middle_5")?.app).toContain("latches");
   });
 
+  it("sees a stick's tuning the app's copy does not have yet", () => {
+    const app = structuredClone(compiled("right"));
+    const layout = structuredClone(compiled("right"));
+    const stick = record(layout, 31).analogSettings;
+    if (!stick) throw new Error("no stick");
+    stick.lowerLimit = 51;
+    stick.analogCones = { verticalCone: 30, horizontalCone: 60 };
+    const found = compareUnit(layout, app, right.device, game.actions);
+    expect(found.map((entry) => entry.position)).toEqual(["stick"]);
+    const row = found[0];
+    expect(row?.labelOnly).toBe(false);
+    expect(row?.layout).toContain("lower deadzone 51");
+    expect(row?.layout).toContain("vertical cone 30");
+    expect(row?.app).toContain("tuned:");
+  });
+
+  it("does not call a setting the app's copy lacks a difference", () => {
+    const app = structuredClone(compiled("right"));
+    const layout = structuredClone(compiled("right"));
+    const held = record(app, 31).analogSettings;
+    if (!held) throw new Error("no stick");
+    delete held.lowerLimit;
+    expect(compareUnit(layout, app, right.device, game.actions)).toEqual([]);
+  });
+
   it("leaves alone what the compiler never writes: the profile switch, unidentified pins", () => {
     const app = structuredClone(compiled("right"));
     record(app, 0).keyValues = ["KeyZ", "0", "0", "0"];
