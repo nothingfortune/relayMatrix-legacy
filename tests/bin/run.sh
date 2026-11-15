@@ -71,4 +71,16 @@ says "install refuses without --yes" "Re-run with --yes" ./bin/azeron install ev
 says "install refuses one device id for a pair" "would send profiles for 2 units" \
   ./bin/azeron install everspace --device-id 0 --dry-run
 
+# The editor server and its stop command, on a port nothing else uses.
+stop_port=4399
+./bin/azeron serve --port "$stop_port" >/dev/null 2>&1 &
+serve_pid=$!
+for _ in $(seq 1 50); do
+  curl -s "http://127.0.0.1:$stop_port/api/azeron-app" >/dev/null 2>&1 && break
+  sleep 0.2
+done
+says "stop ends a running editor server" "stopped the editor server on port $stop_port"   ./bin/azeron stop --port "$stop_port"
+says "stop says when nothing is running" "nothing is running on port $stop_port"   ./bin/azeron stop --port "$stop_port"
+kill "$serve_pid" 2>/dev/null
+
 exit "$fails"

@@ -58,6 +58,8 @@ import {
   resolveSavePath,
   guardedListener,
   readBody,
+  STOP_PATH,
+  stopServer,
   validateSaveContent,
 } from "./lib/serve.js";
 import {
@@ -669,6 +671,22 @@ function cmdServe(port: number, host: string, open = false): number {
       });
       return;
     }
+    if (request.method === "POST" && url === STOP_PATH) {
+      // `azeron stop`. Replied to first, then the server goes: the answer is how the caller
+      // knows this was an editor server and not whatever else holds the port.
+      readBody(request, response, 1_000, () => {
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+        });
+        response.end(JSON.stringify({ ok: true, stopping: true }), () => {
+          out("stopped by `azeron stop`");
+          server.close(() => process.exit(0));
+          server.closeAllConnections();
+        });
+      });
+      return;
+    }
     if (request.method === "POST" && url === "/api/unit-log") {
       // What a write to the units did on the page, in this output, where a failure on the
       // owner's screen can be read afterwards.
@@ -1086,19 +1104,66 @@ function cmdServe(port: number, host: string, open = false): number {
       : [host];
   const server = createServer(guardedListener(route, () => port, extraHosts));
 
+  server.on("error", (error: NodeJS.ErrnoException) => {
+    process.exitCode = 1;
+    if (error.code === "EADDRINUSE") {
+      process.stderr.write(
+        `error: port ${String(port)} is already in use. If it is an editor server, ` +
+          `\`azeron stop --port ${String(port)}\` ends it; otherwise choose another with --port.\n`,
+      );
+      return;
+    }
+    process.stderr.write(`error: ${messageOf(error)}
+`);
+  });
   server.listen(port, host, () => {
     out(`editor on http://localhost:${String(port)}`);
     if (!LOOPBACK_BINDINGS.has(host)) {
       out(`  WARNING: listening on ${host}. Anyone who can reach it can write into the repo.`);
     }
     out("  Saving writes straight into the repo and reports what the linter says.");
-    out("  Ctrl-C to stop.");
+    out(`  Ctrl-C to stop, or \`azeron stop --port ${String(port)}\` from another terminal.`);
     if (open) {
       const url = `http://localhost:${String(port)}`;
       const ctx = { platform: process.platform, wsl: isWsl(), env: process.env };
       if (openInChromium(url, ctx) === null) {
         out(`  Open ${url} in Chrome or Edge: no copy of either was found to open it in.`);
       }
+    }
+  });
+  return 0;
+}
+
+/** Stop the editor server on `port`. The exit code is set once the server has answered. */
+function cmdStop(port: number): number {
+  void stopServer(port).then((result) => {
+    switch (result.kind) {
+      case "stopped":
+        out(`stopped the editor server on port ${String(port)}`);
+        return;
+      case "nothing":
+        out(`nothing is running on port ${String(port)}`);
+        return;
+      case "not-ours":
+        process.stderr.write(
+          `error: something on port ${String(port)} answered (HTTP ${String(result.status)}) but ` +
+            "did not take it as a stop: an editor server started before `stop` existed, or " +
+            "another program. End an old one with Ctrl-C in its terminal, or by closing that process.\n",
+        );
+        process.exitCode = 1;
+        return;
+      case "no-answer":
+        process.stderr.write(
+          `error: port ${String(port)} is open but did not answer a stop request: ${result.reason}\n`,
+        );
+        process.exitCode = 1;
+        return;
+      case "still-running":
+        process.stderr.write(
+          `error: the server on port ${String(port)} said it was stopping, but the port still answers\n`,
+        );
+        process.exitCode = 1;
+        return;
     }
   });
   return 0;
@@ -1425,6 +1490,8 @@ function usage(): void {
                                   the same editor, able to save back into the repo; it
                                   listens on 127.0.0.1 only unless --host names another;
                                   --open opens it in Chrome or Edge
+  stop [--port N]                 stop the editor server on that port (default 4173), the one
+                                  serve started; says so when nothing is running there
   probe [--device D]              the press test's profiles, as files; the test itself
                                   runs from the editor's Press test tab
   new <name> --genre G [--units left,right] [--set S] [--game SLUG]
@@ -1539,6 +1606,8 @@ export function main(argv: string[]): number {
         values.host ?? "127.0.0.1",
         values.open,
       );
+    case "stop":
+      return cmdStop(wholeNumber("--port", values.port ?? "4173"));
     case "editor":
       return cmdEditor(values.out ?? join(dataDirs.dist, "editor.html"));
     case "probe": {

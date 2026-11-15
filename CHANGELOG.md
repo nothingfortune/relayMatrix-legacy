@@ -6,6 +6,11 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Changed
 
+- **`azeron stop`.** Ends the editor server `serve` started (`--port N`, default 4173), so an
+  old one is not left holding the port and serving a stale bundle; it says so when nothing is
+  running, and when something answers that is not an editor server of this version. A second
+  `serve` on a port in use now says so and names `stop`.
+
 - **Write to units sends scroll, down and left included.** The Azeron app was recorded
   writing all four scroll directions to the right unit (firmware 112), and the encoder
   reproduces them byte for byte, so the checks that refused scroll are gone. How a unit

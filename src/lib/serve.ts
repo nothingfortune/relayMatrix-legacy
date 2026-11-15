@@ -343,3 +343,71 @@ export function keepDeviceId(path: string, existing: string | null, incoming: st
   if (committed === undefined) return incoming.replace(/^software_device_id:.*\n?/m, "");
   return DEVICE_ID_LINE.test(incoming) ? incoming.replace(DEVICE_ID_LINE, committed) : incoming;
 }
+
+/** The route `azeron stop` posts to. It is a state-changing request, so it passes `checkRequest`. */
+export const STOP_PATH = "/api/stop";
+
+/**
+ * What asking a server to stop came to. `nothing`: no one is listening on the port.
+ * `not-ours`: something answered but did not take the request as a stop -- a server from
+ * before `stop` existed, or another program. `no-answer`: it is there and did not reply in
+ * time. `still-running`: it said it was stopping and the port still answers.
+ */
+export type StopResult =
+  | { kind: "stopped" }
+  | { kind: "nothing" }
+  | { kind: "not-ours"; status: number }
+  | { kind: "no-answer"; reason: string }
+  | { kind: "still-running" };
+
+interface StopOptions {
+  /** For tests. */
+  fetchImpl?: typeof fetch;
+  /** How long to wait for the port to go quiet once the server has said it is stopping. */
+  settleMs?: number;
+}
+
+const refused = (error: unknown): boolean => {
+  const cause = error instanceof Error ? (error as { cause?: unknown }).cause : undefined;
+  const code = (cause as { code?: unknown } | undefined)?.code;
+  return code === "ECONNREFUSED";
+};
+
+/**
+ * Ask the editor server on `port` (loopback) to stop, and wait until its port is quiet. The
+ * request carries no credentials and gets the same Host and content-type checks as a save,
+ * so a page in a browser cannot send it; this is the same-machine CLI doing it.
+ */
+export async function stopServer(port: number, options: StopOptions = {}): Promise<StopResult> {
+  const doFetch = options.fetchImpl ?? fetch;
+  const base = `http://127.0.0.1:${String(port)}`;
+  let reply: Response;
+  try {
+    reply = await doFetch(`${base}${STOP_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch (error) {
+    return refused(error) ? { kind: "nothing" } : { kind: "no-answer", reason: messageOf(error) };
+  }
+  const stopping = await reply
+    .json()
+    .then((body: { ok?: unknown; stopping?: unknown }) => {
+      return reply.ok && body.ok === true && body.stopping === true;
+    })
+    .catch(() => false);
+  if (!stopping) return { kind: "not-ours", status: reply.status };
+
+  const deadline = Date.now() + (options.settleMs ?? 3000);
+  while (Date.now() < deadline) {
+    try {
+      await doFetch(`${base}/`, { method: "GET", signal: AbortSignal.timeout(500) });
+    } catch (error) {
+      if (refused(error)) return { kind: "stopped" };
+    }
+    await new Promise((done) => setTimeout(done, 100));
+  }
+  return { kind: "still-running" };
+}

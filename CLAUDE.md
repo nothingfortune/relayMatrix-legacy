@@ -95,6 +95,7 @@ output, so `npm run build` first:
 | `azeron ingame [game] --capture-pedals`             | record the pedals' game names from a file they were bound in                   |
 | `azeron ingame [game] --candidate axis=NAME`        | write a hand-written pedal name (a candidate)                                  |
 | `azeron serve [--port N] [--host H] [--open]`       | the editor, able to save back into the repo; `--open` starts Chrome or Edge    |
+| `azeron stop [--port N]`                            | stop the editor server on that port (default 4173)                             |
 | `azeron editor`                                     | the side-by-side editor, one self-contained HTML                               |
 | `azeron probe [--device D]`                         | the press test's profiles as files; the test runs from the editor's Press test |
 | `azeron new <name> --genre G [--units left,right]`  | a game with no export; `--style controller                                     | keyboard`, `--pedals D` |
@@ -230,6 +231,11 @@ get back into the repo.
   only way out is a download you then copy in by hand.
 - `azeron serve` serves the same page over HTTP, where it can POST an edit straight into
   the repo and get the linter's verdict back. The header says which mode the page is in.
+  `azeron stop` ends it: it POSTs to the server's `/api/stop` (behind the same Host,
+  content-type and Origin checks as a save), which replies and then exits, and waits for the
+  port to go quiet. It says so when nothing is running, and when something answers that does
+  not take it as a stop (a server from before `stop` existed): never kill by process id. A
+  server started on a port already in use says so and names `azeron stop`.
 
 `genres/<Genre>/stick-modes.yaml` defines stick modes, after the convention RC
 transmitters use (DJI Mode 1/2/3): a mode assigns four action pairs to the four axes a
