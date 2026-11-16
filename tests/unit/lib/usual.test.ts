@@ -25,6 +25,16 @@ describe("the usual bindings", () => {
     });
   });
 
+  it("give nothing to an action it is told to skip, and its suggestion holds nothing back", () => {
+    const actions = {
+      macro: { keyboard: "Space", xbox: "A" },
+      jump: { keyboard: "Space", xbox: "A" },
+    };
+    expect(usualBindings(actions, () => true, new Set(["macro"]))).toEqual({
+      jump: { kbm: "Space", pad: "A" },
+    });
+  });
+
   it("leave a binding the game already has", () => {
     expect(
       usualBindings({ jump: { keyboard: "Space", xbox: "A", kbm: "KeyJ", pad: "B" } }),
