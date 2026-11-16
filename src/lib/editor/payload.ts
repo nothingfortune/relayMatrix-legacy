@@ -79,6 +79,10 @@ export function buildPayload(local: LocalSettings = loadLocal()): EditorPayload 
       setsText: existsSync(repoPath(join(game.rel, "sets.yaml")))
         ? readFileSync(repoPath(join(game.rel, "sets.yaml")), "utf8")
         : "",
+      macros: game.macros,
+      macrosText: existsSync(repoPath(join(game.rel, "macros.yaml")))
+        ? readFileSync(repoPath(join(game.rel, "macros.yaml")), "utf8")
+        : "",
       ...(game.config.ingame_set === undefined ? {} : { ingameSet: game.config.ingame_set }),
       ingameFile: {
         configured: game.places.ingame_config.from !== null,

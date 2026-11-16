@@ -7,12 +7,22 @@
 
 import { compileProfile, dumps } from "../lib/compile.js";
 import { dumpProfile } from "../lib/decompile.js";
-import { formatFinding, lintProfiles, ROLE_TAGS } from "../lib/lint.js";
+import { formatFinding, lintProfiles, macroFindings, ROLE_TAGS } from "../lib/lint.js";
 import type { Finding } from "../lib/lint.js";
 import { handLayout, positionLabel, unitLabel, whereLabel } from "../lib/layout.js";
 import { applyMode } from "../lib/stickmodes.js";
 import type { StickModeSet } from "../lib/stickmodes.js";
 import { patchSetPedals } from "../lib/setsfile.js";
+import type { MacroDef } from "../lib/macros.js";
+import {
+  addMacro,
+  changedMacros,
+  macroProblem,
+  patchedMacros,
+  removeMacro,
+} from "./macros-model.js";
+import { renderMacros, resetMacroDrafts } from "./macros-panel.js";
+import type { MacrosHost } from "./macros-panel.js";
 import {
   changedSets,
   defaultPedals,
@@ -41,6 +51,7 @@ import {
   unitSendFor,
   wireAction,
   wireFromGame,
+  wireTrigger,
   type UnitSend,
 } from "../lib/wiring.js";
 import { xboxLabel } from "../lib/xbox.js";
@@ -148,6 +159,11 @@ interface State {
    * profiles, as the file is, but saved with them: one control scheme.
    */
   workingSets: SetsData | null;
+  /**
+   * Working copy of the game's macros -- the key list each macro action sends. Saved into
+   * macros.yaml with the rest of the layout, which has no part of it in any profile.
+   */
+  workingMacros: Record<string, MacroDef> | null;
   gameIndex: number;
   setName: string;
   /** Working copies, keyed by profile slug. Edits live here until exported. */
@@ -269,6 +285,22 @@ function currentSets(game: EditorGame = currentGame()): SetsData {
 function editableSets(): SetsData {
   state.workingSets ??= structuredClone(currentGame().sets);
   return state.workingSets;
+}
+
+/** The game's macros now, with edits, or as the page loaded them. */
+function currentMacros(game: EditorGame = currentGame()): Record<string, MacroDef> {
+  return state.workingMacros ?? game.macros.macros;
+}
+
+/** Clone on first edit, so the embedded payload stays pristine. */
+function editableMacros(): Record<string, MacroDef> {
+  state.workingMacros ??= structuredClone(currentGame().macros.macros);
+  return state.workingMacros;
+}
+
+/** Whether an action is a macro: its keys are a list, and its key is a trigger, not a game key. */
+function isMacroAction(id: string): boolean {
+  return id in currentMacros();
 }
 
 /** The pedals of the layout on screen, or undefined when it has none. */
@@ -625,6 +657,16 @@ function wire(actionId: string): void {
   const game = currentGame();
   const spec = actionSetFor(game).actions[actionId];
   if (!needsWire(spec)) return;
+  // A macro's button is a trigger the helper listens for, F13-F24, never a key from the pool
+  // a game's own bindings could be on, and never the key it already has in the game.
+  if (isMacroAction(actionId)) {
+    if (wireTrigger(editableActions(), actionId) === null) {
+      saveNote =
+        `No free trigger key for "${spec?.label ?? actionId}": that control sends nothing. ` +
+        "Free one on the In-game tab.";
+    }
+    return;
+  }
   // With a game file to write, only keys that file has a name for: one it cannot name
   // would be sent and never heard.
   const connected = gameFileGaps(game).length === 0;
@@ -1031,6 +1073,9 @@ function findingWhere(finding: Finding): string {
       .map((device) => device.axes[axis])
       .find((entry) => entry !== undefined);
     return `Pedals: ${pedalAxisLabel(axis, spec)}`;
+  }
+  if (finding.rule.startsWith("macro-") && finding.key !== undefined) {
+    return `Macro: ${actionSetFor(currentGame()).label(finding.key)}`;
   }
   const unit = /-(left|right)$/.exec(finding.profile ?? "")?.[1];
   if (finding.position !== undefined) {
@@ -1956,12 +2001,16 @@ function currentLint(): ReturnType<typeof lintProfiles> | { error: string } {
     const profiles = slugsInSet().map((slug) => profileFor(slug));
     // The pedal rules run only with the layouts' context, so the page passes the working
     // pedals: the same rules `azeron lint` runs, on what is on screen.
-    return lintProfiles(
+    const result = lintProfiles(
       actionSetFor(game),
       profiles,
       game.lintConfig,
       layoutContext(game.slug, currentSets(game), pedalDevices(), stickModesFor() ?? undefined),
     );
+    // What is wrong with the macros is the game's, not a layout's: it carries no profile, so
+    // there is nothing to accept.
+    const macros = macroFindings({ macros: currentMacros(game) }, actionSetFor(game).actions);
+    return macros.length === 0 ? result : { ...result, live: [...result.live, ...macros] };
   } catch (error) {
     return { error: messageOf(error) };
   }
@@ -2981,10 +3030,14 @@ function inGameKeysPart(): SchemePart {
       });
       game.actions.actions = structuredClone(state.workingActions ?? {});
       // The game is only offered the keys when there is a file of its own to write them to.
+      // A macro's trigger is never one: the game is not told it.
+      const gameKey = (id: string): boolean => !isMacroAction(id);
       const keyed =
-        changesAKey(changes) ||
-        Object.values(add).some(
-          (spec) => spec.key !== undefined || spec.meta !== undefined || spec.mouse !== undefined,
+        changesAKey(Object.fromEntries(Object.entries(changes).filter(([id]) => gameKey(id)))) ||
+        Object.entries(add).some(
+          ([id, spec]) =>
+            gameKey(id) &&
+            (spec.key !== undefined || spec.meta !== undefined || spec.mouse !== undefined),
         );
       return { path, result, inGameKeys: keyed && gameFileGaps(game).length === 0 };
     },
@@ -3025,16 +3078,46 @@ function pedalsPart(): SchemePart {
   };
 }
 
+/** The game's macros.yaml with every change written in, its other lines as they were. */
+function patchedMacrosFile(game: EditorGame): string {
+  return patchedMacros(game.macrosText, game.macros.macros, currentMacros(game));
+}
+
 /**
- * Everything that belongs to the control scheme: both keypads, the in-game keys and the
- * pedals. The header's Save, the unsaved marker, the unload guard and the report all follow
- * from this list, so a thing joins the scheme by being an entry here.
+ * The macros: macros.yaml, patched macro by macro so its comments come through. After the
+ * in-game keys, so an action a macro names is in actions.yaml first, and the last check,
+ * which speaks for the save, sees both files.
+ */
+function macrosPart(): SchemePart {
+  return {
+    name: "Macros",
+    isDirty: () =>
+      state.workingMacros !== null &&
+      changedMacros(currentGame().macros.macros, state.workingMacros).length > 0,
+    async save() {
+      const game = currentGame();
+      const working = structuredClone(currentMacros(game));
+      const text = patchedMacrosFile(game);
+      const path = `${game.rel}/macros.yaml`;
+      const result = await saveResponse("/api/save", { path, content: text });
+      game.macros = { macros: working };
+      game.macrosText = text;
+      return { path, result };
+    },
+  };
+}
+
+/**
+ * Everything that belongs to the control scheme: both keypads, the in-game keys, the
+ * pedals and the macros. The header's Save, the unsaved marker, the unload guard and the
+ * report all follow from this list, so a thing joins the scheme by being an entry here.
  */
 function schemeParts(): SchemePart[] {
   return [
     ...currentGame().profiles.map((profile) => keypadPart(profile.slug)),
     inGameKeysPart(),
     pedalsPart(),
+    macrosPart(),
   ];
 }
 
@@ -3247,6 +3330,7 @@ function snapshot(): string {
     profiles: slugsInSet().map((slug) => [slug, workingData(slug)]),
     actions: state.workingActions ?? game.actions.actions ?? {},
     sets: state.workingSets ?? currentSets(game),
+    macros: currentMacros(game),
   });
 }
 
@@ -3274,10 +3358,12 @@ function undo(): void {
     profiles: [string, ProfileData][];
     actions: Record<string, ActionSpec>;
     sets: SetsData;
+    macros: Record<string, MacroDef>;
   };
   for (const [slug, profile] of data.profiles) state.working.set(slug, profile);
   state.workingActions = data.actions;
   state.workingSets = data.sets;
+  state.workingMacros = data.macros;
   state.selected = null;
   state.slot = "tap";
   restoring = true;
@@ -5002,6 +5088,9 @@ function downloadLayoutYaml(): void {
   if (pedalsPart().isDirty()) {
     download("sets.yaml", patchedSetsFile(game).text, "text/yaml");
   }
+  if (macrosPart().isDirty()) {
+    download("macros.yaml", patchedMacrosFile(game), "text/yaml");
+  }
   // Offline there is no file to patch, so this is the whole vocabulary, flattened. It says
   // so, because pasting it over the real file would lose `extends:` and the allowlist.
   const header =
@@ -5249,6 +5338,8 @@ function renderHeader(): HTMLElement {
       state.working.clear();
       state.workingActions = null;
       state.workingSets = null;
+      state.workingMacros = null;
+      resetMacroDrafts();
       state.selected = null;
       render();
     });
@@ -5511,11 +5602,13 @@ function useGameKeys(
   const live = liveTogether(currentSets(game));
   const { placed, onStick } = actionsOnUnits(game);
   const changed: string[] = [];
+  // A macro's key is its trigger, which the game is never told: it stays as it is.
+  const isMacro = (id: string): boolean => isMacroAction(id);
   // Passes until nothing moves: an action blocked by one that moves later goes next time.
   for (let moved = true; moved;) {
     moved = false;
     for (const [id, spec] of Object.entries(actions)) {
-      if (!placed.has(id)) continue;
+      if (!placed.has(id) || isMacro(id)) continue;
       const send = unitSendFor(spec.kbm);
       if (send === null || !sendsSomething(spec) || sendsAs(spec, send)) continue;
       const bare: ActionSpec = { ...spec };
@@ -5534,7 +5627,7 @@ function useGameKeys(
   // Still sent on a key the game is not known to have it on: set in the game by hand.
   const unresolved = Object.entries(actions)
     .filter(([id, spec]) => {
-      if (!placed.has(id) || !sendsSomething(spec)) return false;
+      if (!placed.has(id) || isMacro(id) || !sendsSomething(spec)) return false;
       const send = unitSendFor(spec.kbm);
       return send === null || !sendsAs(spec, send);
     })
@@ -5907,7 +6000,7 @@ let boardsOpen = false;
 
 /** Bring an action's row into view, picked out for a moment. */
 function showActionRow(id: string): void {
-  const row = document.querySelector(`[data-kbm="${id}"]`)?.closest(".ingame-row");
+  const row = document.querySelector(`[data-kbm="${id}"]`)?.closest(".ingame-row, .macro");
   if (!(row instanceof HTMLElement)) return;
   row.scrollIntoView({ block: "center" });
   row.classList.add("picked");
@@ -5974,10 +6067,78 @@ function actionInUse(game: EditorGame, id: string): boolean {
  * back from the genre), and no control sends it.
  */
 function canDeleteAction(game: EditorGame, id: string): boolean {
+  // A macro's action goes with the macro: deleting it alone would leave the macro with none.
+  return !isMacroAction(id) && isRemovable(game, id);
+}
+
+/** Whether an action is the game's own to take out, which a macro's action is when it is on no key. */
+function isRemovable(game: EditorGame, id: string): boolean {
   if (id in (genreOf(game)?.actions.actions ?? {})) return false;
   // One that names a row in the game's own file is part of what the game is told.
   if (game.actions.actions?.[id]?.ingame !== undefined) return false;
   return !actionInUse(game, id);
+}
+
+/** The Macros panel's way into the page: it draws, and every change goes through here. */
+function macrosHost(game: EditorGame): MacrosHost {
+  const actions = actionSetFor(game).actions;
+  const macros = currentMacros(game);
+  const bound = boundActions();
+  return {
+    macros,
+    actions,
+    findings: macroFindings({ macros }, actions),
+    placed: (id) => bound.get(id) ?? [],
+    nameField: actionNameField,
+    kbmField,
+    padField,
+    add(label, def) {
+      const id = newActionId(label, { ...actions, ...macros });
+      // Tried on copies first: a macro with no trigger left, or keys the game cannot type,
+      // would be saved as an error, so it is refused here instead.
+      const probe = structuredClone(actions);
+      if (addMacro(probe, {}, id, label, def) === null) return "No free trigger key";
+      const problem = macroProblem(def, probe);
+      if (problem !== null) return problem;
+      addMacro(editableActions(), editableMacros(), id, label, def);
+      render();
+      return null;
+    },
+    update(id, def) {
+      const problem = macroProblem(def, actions);
+      if (problem !== null) return problem;
+      editableMacros()[id] = def;
+      render();
+      return null;
+    },
+    keypad(id, on) {
+      const working = editableActions();
+      const spec = working[id];
+      if (spec === undefined) return null;
+      // Whatever it was sent on goes: a trigger is one key, with no modifier or mouse button.
+      const bare: ActionSpec = { ...spec };
+      for (const field of ["key", "meta", "mouse"]) removeKey(bare, field);
+      working[id] = bare;
+      if (on && wireTrigger(working, id) === null) {
+        working[id] = spec;
+        return "No free trigger key";
+      }
+      render();
+      return null;
+    },
+    remove(id) {
+      const { actionKept } = removeMacro(
+        editableActions(),
+        editableMacros(),
+        id,
+        isRemovable(game, id),
+      );
+      if (playerCapture?.id === id) playerCapture = null;
+      saveNote = actionKept ? "Removed. The action is still on a key." : null;
+      render();
+    },
+    redraw: render,
+  };
 }
 
 /** An action id from its name: lower case, words joined by underscores, never a clash. */
@@ -6183,7 +6344,8 @@ function actionTagField(id: string, spec: ActionSpec): HTMLElement {
  * has neither yet: a place to start, changed below like any other binding, kept by Save.
  */
 function usualBindingsField(game: EditorGame): HTMLElement {
-  const usual = usualBindings(editableActions(), liveTogether(currentSets(game)));
+  const macros = new Set(Object.keys(currentMacros(game)));
+  const usual = usualBindings(editableActions(), liveTogether(currentSets(game)), macros);
   const count = Object.keys(usual).length;
   const fill = el("button", { class: "btn small", type: "button", "data-usual": "fill" }, [
     "Fill in the usual bindings",
@@ -6198,7 +6360,7 @@ function usualBindingsField(game: EditorGame): HTMLElement {
     const actions = editableActions();
     // Worked out again on the click: the page may have changed since it was drawn.
     for (const [id, binding] of Object.entries(
-      usualBindings(actions, liveTogether(currentSets(game))),
+      usualBindings(actions, liveTogether(currentSets(game)), macros),
     )) {
       const spec = actions[id];
       if (spec === undefined) continue;
@@ -6276,10 +6438,13 @@ function renderInGame(): HTMLElement {
   // The game's controls, one per row: add one by name, then give it a key on each device.
   panel.append(newActionField());
   panel.append(controlListField());
+  panel.append(renderMacros(macrosHost(game)));
   const table = el("div", { class: "ingame-list" });
   const modes = layoutModes(currentSets(game), state.setName);
   for (const [id, spec] of Object.entries(actions.actions)) {
     if (!playsAction(modes, spec)) continue;
+    // A macro is managed in its own panel, above: one home for its name and buttons.
+    if (isMacroAction(id)) continue;
     const where = bound.get(id);
     const item = el("div", { class: `ingame-row${where ? "" : " unbound"}` });
     item.append(
@@ -6927,6 +7092,7 @@ function switchGame(index: number): void {
     state.working.clear();
     state.workingActions = null;
     state.workingSets = null;
+    state.workingMacros = null;
     state.selected = null;
     state.setName = [...setsOf(currentGame()).keys()][0] ?? "";
   }
@@ -7915,6 +8081,7 @@ function resetSession(): void {
   captureProblem = null;
   renaming = null;
   pendingSpec = null;
+  resetMacroDrafts();
   if (probeHost !== null) {
     stopProbe();
     probeHost = null;
@@ -8204,6 +8371,7 @@ export function start(
     mode: place.stored ? place.mode : (options.firstScreen ?? place.mode),
     workingActions: null,
     workingSets: null,
+    workingMacros: null,
     gameIndex: place.gameIndex,
     setName: place.setName,
     working: new Map(),

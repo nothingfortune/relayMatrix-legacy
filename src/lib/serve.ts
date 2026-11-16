@@ -17,6 +17,7 @@ import { parse } from "yaml";
 
 import { normalizeProfileData } from "./normalize.js";
 import { messageOf } from "./object.js";
+import { parseMacros } from "./macros.js";
 import { parsePedalsDevice, parseSets } from "./pedals.js";
 import { isPlainObject } from "./yaml.js";
 
@@ -27,6 +28,7 @@ const WRITABLE = [
   /^games\/[^/]+\/[^/]+\/profiles\/[^/]+\.ya?ml$/,
   /^games\/[^/]+\/[^/]+\/actions\.ya?ml$/,
   /^games\/[^/]+\/[^/]+\/sets\.ya?ml$/,
+  /^games\/[^/]+\/[^/]+\/macros\.ya?ml$/,
   /^devices\/[^/]+\.ya?ml$/,
 ];
 
@@ -44,8 +46,8 @@ export function resolveSavePath(repoRoot: string, requested: string): string {
   if (tidy.startsWith("../")) throw new SaveRejected(`${requested} is outside the repo`);
   if (!WRITABLE.some((pattern) => pattern.test(tidy))) {
     throw new SaveRejected(
-      `${tidy} is not something the editor may write. Profiles, a game's actions.yaml ` +
-        "and sets.yaml, and device maps only.",
+      `${tidy} is not something the editor may write. Profiles, a game's actions.yaml, ` +
+        "sets.yaml and macros.yaml, and device maps only.",
     );
   }
 
@@ -87,6 +89,8 @@ export function validateSaveContent(path: string, content: string): void {
       checkActionsShape(raw, tidy);
     } else if (/\/sets\.ya?ml$/.test(tidy)) {
       parseSets(raw, tidy);
+    } else if (/\/macros\.ya?ml$/.test(tidy)) {
+      parseMacros(raw, tidy);
     } else if (tidy.startsWith("devices/")) {
       if (isPlainObject(raw) && raw.kind === "pedals") parsePedalsDevice(raw, tidy);
       else checkKeypadDeviceShape(raw, tidy);

@@ -258,6 +258,10 @@ compiles them to `dist/<game>/macros.json`, a gated fixed point; `macro-invalid`
 `macro-trigger` are errors. `MacroRunner` (`macrorun.ts`) types a program behind `MacroIo`; tests use
 a fake, never a real keyboard. The unit's own press reports (`BTN_POS`) are not used: no capture
 of what asks for them exists. See `docs/plans/macros.md`.
+The editor's Macros panel (`src/editor/macros-panel.ts`, rules in `macros-model.ts`) is on the In-game
+tab: `macrosPart()` saves `macros.yaml` (`patchMacro` in `macros-file.ts` keeps its comments) after the
+actions. A macro's action is a trigger, never a game key: `wire()` gives it `wireTrigger`, and
+`useGameKeys`, `usualBindings` and `canDeleteAction` skip it.
 
 **Pedals are a modifier on the stick mode, and part of the layout.** Rudder pedals carry
 yaw, so a stick that still sends it duplicates them. `stick-modes.yaml` says which axes

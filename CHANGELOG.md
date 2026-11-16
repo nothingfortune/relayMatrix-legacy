@@ -22,6 +22,15 @@ Every profile change, and why. `playtests.md` records what each layout felt like
   keyboard in tests. Nothing runs on a PC yet: the editor and the Windows helper follow.
   `docs/plans/macros.md` has the design.
 
+- **Macros, the editor.** The In-game tab has a Macros panel: each macro's keys (typed as `A B C`,
+  `ControlLeft+R`, `wait:50`, `down:ShiftLeft`), repeat, hold and gap, and which buttons start it:
+  the keypad (a trigger key, F13-F24, handed out by `wireTrigger`), a keyboard key or a controller
+  button. Add takes a name and keys together; Delete takes the action with it unless a control
+  sends it. Saved with the layout into `macros.yaml`, patched macro by macro so its comments
+  survive, and rebuilt into `dist/`. The Checks panel shows `macro-invalid` and `macro-trigger`.
+  A macro's action is never given a game key: dropping it on a control, Send the game's keys
+  and the usual bindings all leave it alone.
+
 - **Swap left and right.** The write bar and the press test bar swap which unit is which hand
   in `local.yaml`, both at once, for a unit named for the wrong hand.
 

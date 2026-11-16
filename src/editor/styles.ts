@@ -532,6 +532,22 @@ header .picker select { font-weight: 600; }
 .control-list { margin: 6px 0 10px; }
 .control-list summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .control-list textarea { width: 100%; margin-top: 6px; font: 12.5px/1.4 ui-monospace, monospace; }
+.macros { margin: 6px 0 12px; display: grid; gap: 6px; }
+.macros h3 { margin: 0; font-size: var(--fs-3); }
+.macro { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.macro.picked { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--accent-soft); }
+.macro-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.macro-head .who { min-width: 0; }
+.macro-head .who b { display: block; font-size: var(--fs-2); font-weight: 600; }
+.macro-head .who small { display: block; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.macro-keys, .macro-name { font: 12.5px/1.4 ui-monospace, monospace; min-width: 0; }
+.macro > .macro-keys { width: 100%; }
+.macro-opts, .macro-starts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.macro-opt { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-2); }
+.macro-ms { width: 52px; padding: 2px 5px; font-size: 11px; }
+.macro-trigger { font-weight: 600; color: var(--muted); }
+.macro-add { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(120px, 3fr) auto; gap: 6px; }
+.macro-finding { margin: 0; }
 .device-row { display: flex; gap: 3px; }
 .pad-board { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
 .pad-side { display: grid; gap: 4px; justify-items: center; }
