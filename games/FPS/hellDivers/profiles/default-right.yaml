@@ -1,0 +1,65 @@
+profile:
+  id: d96eb0fc-641f-4232-99ac-2f7957cea3ac
+  name: Helldivers 2 default right
+  device: cyborg2-right
+  unit: right
+  set: default
+  output: hellDivers_default_right.json
+  template: templates/everspace2-akimbo-right.json
+positions:
+  stick:
+    mode: mouse
+  index_4:
+    tap: fire_primary
+    label: Fire
+  dpad_up:
+    label: Primary
+    tap: weapon_1
+  dpad_right:
+    label: Support weapon
+    tap: weapon_3
+  index_side:
+    label: Interact
+    tap: interact
+  pinky_side:
+    label: Push to talk
+    tap: push_to_talk
+  dpad_down:
+    tap: backpack
+    label: Backpack
+  index_5:
+    label: Main menu
+    tap: menu_main
+  middle_5:
+    label: Emote
+    tap: emote
+  ring_5:
+    label: Map
+    tap: map
+  thumb_aux_lower:
+    label: Grenade slot
+    tap: grenade_slot
+  thumb_aux_upper:
+    label: Secondary
+    tap: weapon_2
+  dpad_left:
+    label: Stim
+    tap: stim
+  pinky_5:
+    label: Stratagem (hold)
+    tap: stratagem
+  pinky_4:
+    label: Melee
+    tap: melee
+  dpad_press:
+    tap: inventory
+    label: Inventory
+  middle_4:
+    tap: aim
+    label: Aim
+  stick_press:
+    tap: ping
+    label: Ping / comms wheel
+  index_3:
+    tap: reload
+    label: Reload
