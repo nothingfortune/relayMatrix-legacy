@@ -293,10 +293,10 @@ describe("writing the layout into the units", () => {
     plugIn([makeUnit("left"), makeUnit("right")]);
     await writeToUnits();
     await vi.waitFor(() => {
-      expect(bar()).toContain("This changes how the right unit's stick is inverted");
+      expect(bar()).toContain("Changes the right unit's stick inversion");
     }, WAIT);
     expect(bar()).toContain("stick inverts X is true on the unit, false in the layout");
-    expect(bar()).not.toContain("left unit's stick is inverted");
+    expect(bar()).not.toContain("left unit's stick inversion");
   });
 
   it("says when the browser has no WebHID", async () => {
