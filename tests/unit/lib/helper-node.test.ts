@@ -270,6 +270,12 @@ describe("running the helper", () => {
     });
     expect(run.lines.join("\n")).toContain("helper on: everspace, 1 macro(s). Ctrl+Alt+Pause");
     expect(readHelperState()?.game).toBe("everspace");
+    // The heartbeat moves; the time it started does not.
+    const first = readHelperState();
+    await wait(70);
+    const later = readHelperState();
+    expect(later?.startedAt).toBe(first?.startedAt);
+    expect(later?.beat).toBeGreaterThan(first?.beat ?? Infinity);
 
     child.say({ ev: "down", device: "azeron", input: "F13" });
     child.say({ ev: "down", device: "azeron", input: "F13" });
@@ -348,6 +354,36 @@ describe("running the helper", () => {
     expect(run.lines.at(-1)).toContain("the helper did not start");
     expect(child.received.at(-1)).toBe('{"cmd":"stop"}');
     expect(child.exited).toBe(true);
+  });
+
+  it("can be found, and is not started twice, while it is still compiling", async () => {
+    const child = new FakeProcess();
+    const first = options(child);
+    const running = runHelper(first.options);
+    await wait(30);
+    // Not ready yet: the record is already there.
+    expect(readHelperState()?.game).toBe("everspace");
+    const second = options(new FakeProcess());
+    expect((await runHelper(second.options)).code).toBe(1);
+    expect(second.spawned).toEqual([]);
+    expect(readHelperState()?.game).toBe("everspace");
+    child.say({ ev: "ready" });
+    await wait(30);
+    writeFileSync(join(logs, "helper.stop"), "x", "utf8");
+    expect((await running).code).toBe(0);
+    expect(readHelperState()).toBeNull();
+  });
+
+  it("starts clean over a request left by a run that crashed", async () => {
+    writeFileSync(join(logs, "helper.stop"), "x", "utf8");
+    const child = new FakeProcess();
+    const run = options(child);
+    const result = runHelper(run.options);
+    child.say({ ev: "ready" });
+    await wait(60);
+    expect(child.exited).toBe(false);
+    writeFileSync(join(logs, "helper.stop"), "x", "utf8");
+    expect((await result).code).toBe(0);
   });
 
   it("does not start a second helper beside a running one", async () => {

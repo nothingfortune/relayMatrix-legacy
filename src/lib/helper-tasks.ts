@@ -24,7 +24,7 @@ import type { Game } from "./model.js";
 export const HELPER_WARNING: readonly string[] = [
   "Anti-cheat: the helper types keys with SendInput. Windows marks that input as injected,",
   "and some anti-cheat reads it as cheating. Check the game's rules first: a ban is on you.",
-  "It swallows the trigger keys it is given and types F13-F24 / plain keys as macros.",
+  "It swallows the keys that start a macro (F13-F24 from a keypad, a plain key) and types the macro's keys.",
   "Ctrl+Alt+Pause releases everything and stops it.",
 ];
 

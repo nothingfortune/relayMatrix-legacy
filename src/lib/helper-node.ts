@@ -266,7 +266,27 @@ export async function runHelper(options: RunOptions): Promise<RunResult> {
     script.remove();
   };
 
+  // The record is there from the start, not from ready: the process takes seconds to compile
+  // its C#, and a second `start` in that time must find this one.
+  const startedAt = new Date(clock.now()).toISOString();
+  const beat = (): void => {
+    writeHelperState({
+      game: plan.game.slug,
+      macros: plan.program.macros.length,
+      startedAt,
+      beat: clock.now(),
+    });
+  };
+
   try {
+    clearHelperState();
+    beat();
+    timers.push(setInterval(beat, options.heartbeatMs ?? HEARTBEAT_MS));
+    timers.push(
+      setInterval(() => {
+        if (stopRequested()) void session.stop();
+      }, options.stopPollMs ?? 500),
+    );
     // Ctrl-C ends this process and the child alike; stopping the session first lets the
     // child release its keys on the way out.
     for (const signal of options.signals ?? []) {
@@ -295,21 +315,6 @@ export async function runHelper(options: RunOptions): Promise<RunResult> {
       return { code: 1, end };
     }
 
-    const beat = (): void => {
-      writeHelperState({
-        game: plan.game.slug,
-        macros: plan.program.macros.length,
-        startedAt: new Date(clock.now()).toISOString(),
-        beat: clock.now(),
-      });
-    };
-    beat();
-    timers.push(setInterval(beat, options.heartbeatMs ?? HEARTBEAT_MS));
-    timers.push(
-      setInterval(() => {
-        if (stopRequested()) void session.stop();
-      }, options.stopPollMs ?? 500),
-    );
     out(
       `helper on: ${plan.game.slug}, ${String(plan.program.macros.length)} macro(s). ` +
         `${PANIC_KEY_TEXT} stops it, as does Ctrl-C.`,

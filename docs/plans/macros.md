@@ -135,6 +135,9 @@ A thin I/O bridge in two halves. The macro logic stays in TypeScript.
   see its keys either. The helper says so when `SendInput` is refused.
 - Closing the terminal window ends both processes at once; whether PowerShell gets to release
   its keys first is untested.
+- The stdin lifeline and the line protocol were run against a real `powershell.exe` with a
+  stand-in script (no hook, no input): `-File` leaves stdin to the C#, 350 lines came back in
+  order, and closing stdin ended it (`tests/unit/lib/helper-pipe.test.ts`, Windows only).
 - WSL: the process is started through `powershell.exe` interop. Whether closing stdin reaches
   it when Node is killed is untested.
 - The opt-in is a hand edit of `game.yaml`; the editor could offer it beside the macros panel.

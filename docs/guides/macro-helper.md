@@ -31,8 +31,11 @@ From PowerShell or WSL; elsewhere it says it runs on Windows only.
   kills a process. `azeron helper status` says whether one runs (exit 0) or not (exit 1).
 - **Ctrl+Alt+Pause** (also Ctrl+Alt+Break) anywhere: it releases every key the helper put down
   and ends it. The key itself is not swallowed.
-- Closing the terminal, or Node dying: the helper sees its input close, releases every key and
-  exits. Windows removes its keyboard hook when the process ends, however it ends.
+- Node ending (a crash, a kill): the helper sees its input close, releases every key and exits.
+  Checked with a stand-in process (`helper-pipe.test.ts`), not with the real hook. Windows
+  removes its keyboard hook when the process ends, however it ends.
+- Closing the terminal window ends both processes at once. Whether the helper gets to release a
+  held key first is untested: step 9 below.
 
 ## What it does to your keyboard
 
