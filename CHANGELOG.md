@@ -22,6 +22,17 @@ Every profile change, and why. `playtests.md` records what each layout felt like
   keyboard in tests. Nothing runs on a PC yet: the editor and the Windows helper follow.
   `docs/plans/macros.md` has the design.
 
+- **Macros, the Windows helper.** `azeron helper start [game] [--yes]` runs a small PowerShell +
+  C# process that watches for the buttons that start a macro (the keypad's F13-F24 trigger and a
+  keyboard key, both swallowed; a controller button, read from XInput) and types the macro's keys
+  with `SendInput` and scan codes. It is a thin bridge: the runner stays in TypeScript behind a
+  line-delimited JSON protocol (`src/lib/helper.ts`). A game opts in with `macros: {helper: true}`
+  in its `game.yaml`; the anti-cheat warning is printed once and needs `--yes` or a yes. It
+  ignores its own typing, releases every key on stop, error, Ctrl-C and when Node dies, has a
+  runaway guard, and Ctrl+Alt+Pause releases everything and stops it. `azeron helper status` and
+  `stop` work through a heartbeat file under `logs/`, never a process id. Not yet run against a
+  real hook, game or controller: `docs/guides/macro-helper.md` is the hand test.
+
 - **Swap left and right.** The write bar and the press test bar swap which unit is which hand
   in `local.yaml`, both at once, for a unit named for the wrong hand.
 

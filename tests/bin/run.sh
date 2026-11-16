@@ -71,6 +71,33 @@ says "install refuses without --yes" "Re-run with --yes" ./bin/azeron install ev
 says "install refuses one device id for a pair" "would send profiles for 2 units" \
   ./bin/azeron install everspace --device-id 0 --dry-run
 
+# The macro helper's refusals, which need no Windows process: they come before the machine is
+# looked at. The state files go in a folder of their own, and the games with the helper on
+# are a scratch copy, so nothing here reads the owner's logs or the frozen fixture is changed.
+helper_logs="$(mktemp -d)"
+helper_repo="$(mktemp -d)"
+cp -r tests/fixtures/repo/. "$helper_repo"
+says "helper needs a subcommand" "helper needs start" env AZERON_LOGS="$helper_logs" ./bin/azeron helper
+says "helper refuses an unknown subcommand" "unknown helper command 'restart'" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper restart
+check_fails "helper start exits non-zero for a game that has not turned it on" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper start everspace --yes
+says "helper start refuses a game that has not turned it on" "the helper is off" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper start everspace --yes
+says "helper start with no game on says so" "no game has the helper on" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper start --yes
+says "helper status says none runs" "not running" env AZERON_LOGS="$helper_logs" ./bin/azeron helper status
+says "helper stop says when nothing runs" "no helper is running" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper stop
+printf '\nmacros:\n  helper: true\n' >> "$helper_repo/games/SpaceSims/everspace/game.yaml"
+says "helper start refuses a game with no macros" "no macros" \
+  env AZERON_LOGS="$helper_logs" AZERON_DATA="$helper_repo" ./bin/azeron helper start everspace --yes
+sed -i 's/^actions:$/actions:\n  quick_heal: {label: Quick heal, key: F13}/' "$helper_repo/games/SpaceSims/everspace/actions.yaml"
+printf 'macros:\n  quick_heal: [KeyH, KeyJ]\n' > "$helper_repo/games/SpaceSims/everspace/macros.yaml"
+says "helper start refuses a program that was not built" "macros.json is missing. Run azeron build" \
+  env AZERON_LOGS="$helper_logs" AZERON_DATA="$helper_repo" ./bin/azeron helper start everspace --yes
+rm -rf "$helper_logs" "$helper_repo"
+
 # The editor server and its stop command, on a port nothing else is using. The port is one the
 # system hands out, and the server is only stopped once it has said it started: a server
 # that was already on the port would otherwise be the one `stop` shut down.

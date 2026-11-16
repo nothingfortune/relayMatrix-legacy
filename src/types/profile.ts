@@ -278,6 +278,12 @@ export interface GameConfig {
    * one binding file, so one layout's control scheme is what it holds at a time.
    */
   ingame_set?: string;
+  /**
+   * Whether the game turns on the macro helper (`azeron helper start`): a Windows process
+   * that types a macro's keys. Off unless `helper: true`; injected input is flagged by
+   * Windows and some anti-cheat treats it as cheating, so each game opts in.
+   */
+  macros?: { helper?: boolean };
   lint?: LintConfig;
 }
 
