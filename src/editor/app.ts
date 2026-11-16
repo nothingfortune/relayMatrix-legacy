@@ -48,6 +48,7 @@ import { eliteKeyFor } from "../lib/elite.js";
 import type { UnitCheck, UnitDifference, UnitsReport } from "../lib/units.js";
 import { describeSent, expectedPresses, verdict } from "../lib/checkunit.js";
 import { keyboardBoard, keyChooser, padBoard, padChooser } from "./device-boards.js";
+import { renderDefaults } from "./defaults-view.js";
 import { openPicker, pickerOpen } from "./picker.js";
 import {
   MOUSE_BUTTON_TOKENS,
@@ -6982,7 +6983,20 @@ function renderGames(): HTMLElement {
     state.mode = "repo";
     render();
   });
-  grid.append(add);
+  const defaults = el(
+    "button",
+    { class: "game-card add", type: "button", "data-defaults-card": "" },
+    [
+      el("b", { class: "game-name" }, ["Defaults"]),
+      el("span", { class: "game-facts" }, ["The pad and units, by kind of game"]),
+    ],
+  );
+  defaults.addEventListener("click", () => {
+    resetSession();
+    state.mode = "repo";
+    render();
+  });
+  grid.append(defaults, add);
   panel.append(grid);
   return panel;
 }
@@ -7203,9 +7217,26 @@ function renderManage(): HTMLElement | null {
   return box;
 }
 
+/** From the defaults view: the new-game form, with that genre and layout chosen. */
+function startFromDefaults(genre: string, style: string): void {
+  newGame.genre = genre;
+  newGame.style = style;
+  render();
+  document.querySelector(".new-game")?.scrollIntoView({ block: "start" });
+}
+
 function renderRepo(): HTMLElement {
   const panel = el("div", { class: "panel" });
   panel.append(el("h2", {}, ["Setup"]));
+
+  // What a game of each kind starts with, drawn. Read only, so it is here served or not.
+  const defaults = renderDefaults({
+    payload: state.payload,
+    canStart: canSave(),
+    start: startFromDefaults,
+    redraw: render,
+  });
+  if (defaults !== null) panel.append(defaults);
 
   if (!canSave()) {
     panel.append(el("div", { class: "empty-state" }, ["Needs the served editor: npm start."]));

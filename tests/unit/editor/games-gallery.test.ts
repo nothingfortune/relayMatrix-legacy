@@ -28,6 +28,7 @@ describe("the games gallery", () => {
     expect(cards().map((card) => card.querySelector(".game-name")?.textContent)).toEqual([
       "Everspace 2",
       "Second game",
+      "Defaults",
       "+ Add a new game",
     ]);
     expect(document.querySelector(".hand")).toBeNull();

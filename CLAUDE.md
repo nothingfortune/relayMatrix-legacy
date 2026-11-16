@@ -89,6 +89,7 @@ output, so `npm run build` first:
 | `azeron build [game] [--check]`                     | compile profile YAML into `dist/`                                              |
 | `azeron lint [game] [--strict]`                     | the constraint rules; `--show-acknowledged` too                                |
 | `azeron roundtrip [game]`                           | golden profiles must rebuild their template exactly                            |
+| `azeron defaults [genre] [--style S]`               | a genre's Xbox pad and layouts, drawn with nothing started                     |
 | `azeron bindings [game]`                            | the in-game key list, to check against the game                                |
 | `azeron units [game] [--set S]`                     | whether the Azeron app has each layout as it is now, and which keys differ     |
 | `azeron ingame [game] [--apply]`                    | compare the game's `Input.ini`; `--apply` rewrites it                          |
@@ -180,11 +181,23 @@ Three inputs meet in the compiler, and are kept separate:
    `subType`, analog tuning, the records for unidentified pins) survive untouched.
 
 **The genres** are FPS, SpaceSims, Flight, Action (third person), Survival, Mech, RPG and
-Strategy, chosen to cover the owner's library rather than one per game. RPG and Strategy
-are played with a mouse, so they have no `xbox:` controls and no `layouts.yaml`: a layout
-is one unit beside the mouse, and a second unit starts empty. A new genre is checked by
-starting a game from it in a scratch `AZERON_DATA` (one unit, and a pair in each style) and
-linting it `--strict`; no test reads the real `genres/`.
+Strategy, chosen to cover the owner's library rather than one per game. Every genre has a
+pad mapping (the `xbox:` column of its actions.yaml) and a `controller` style laid from it,
+RPG and Strategy included. They are played with a mouse, so their `keyboard` style is the
+`default: true` one (`styleNames`): a pair still starts as the one-unit layout on the left
+and the right empty, and the controller style is chosen. Their pad walks the party (RPG) or
+points with the left stick in mouse mode (Strategy), and sends the mouse's buttons from A,
+B and X. A pad has sixteen buttons, so each genre leaves some actions on no control
+(`azeron defaults <genre>` lists them); the controller style carries those on the units'
+fingers, the one place the pair and the pad differ. `lintGenre` errors on an `xbox:` that is not a pad
+control, two actions on one control and a style that will not build, and warns on a menu on
+a button play presses. The defaults are drawn without starting a game: `azeron defaults
+[genre] [--style S]`, and the Setup tab's Defaults view (`src/lib/defaults.ts`, built with
+`buildStyle` as a new game is, carried in `payload.genres[].defaults`;
+`src/editor/defaults-view.ts` draws it). A new genre is checked by starting a game from it
+in a scratch `AZERON_DATA` (one unit, and a pair in each style) and linting it `--strict`;
+`tests/unit/lib/genre-pads.test.ts` does that for all eight against a frozen copy
+(`tests/fixtures/defaults`); no test reads the real `genres/`.
 
 Profiles map position to action id, never position to raw key.
 
