@@ -115,8 +115,8 @@ function readRecord(record: InputRecord, isStick: boolean): PositionSpec {
 }
 
 /** A stick's tuning as the unit stores it; `decompilePosition` leaves it out on purpose. */
-function tuningOf(record: InputRecord): Record<string, number> {
-  const found: Record<string, number> = {};
+function tuningOf(record: InputRecord): Record<string, number | string> {
+  const found: Record<string, number | string> = {};
   const analog = record.analogSettings;
   if (analog === undefined) return found;
   const cones = analog.analogCones as Record<string, unknown> | undefined;
@@ -126,8 +126,24 @@ function tuningOf(record: InputRecord): Record<string, number> {
     ["threshold", analog.sensitivity],
     ["vertical cone", cones?.verticalCone],
     ["horizontal cone", cones?.horizontalCone],
+    ["angle", analog.angle],
+    ["lock zone angle", analog.lockZoneAngle],
+    ["lock zone size", analog.lockZoneSize],
+    ["trigger magnitude", analog.triggerMagnitude],
+    ["hold magnitude", analog.holdMagnitude],
+    ["throttle", analog.analogThrottle],
+    ["counter strafe", analog.rotateStickButtonId],
   ];
   for (const [name, value] of fields) if (typeof value === "number") found[name] = value;
+  const switches: [string, unknown][] = [
+    ["invert X", analog.invertXAxis],
+    ["invert Y", analog.invertYAxis],
+    ["angle lock", analog.isAngleLock],
+    ["hold threshold", analog.isHoldTrigger],
+    ["smoothing", analog.isAnalogSmoothing],
+  ];
+  for (const [name, value] of switches)
+    if (typeof value === "boolean") found[name] = value ? "on" : "off";
   return found;
 }
 
@@ -139,7 +155,7 @@ function tuningDifference(mine: InputRecord, other: InputRecord): { want: string
   const want = tuningOf(mine);
   const have = tuningOf(other);
   const differing = Object.keys(want).filter((name) => name in have && want[name] !== have[name]);
-  const text = (found: Record<string, number>): string =>
+  const text = (found: Record<string, number | string>): string =>
     differing.map((name) => `${name} ${String(found[name])}`).join(", ");
   return { want: text(want), have: text(have) };
 }

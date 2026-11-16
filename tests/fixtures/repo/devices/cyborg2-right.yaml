@@ -87,3 +87,7 @@ positions:
   # The thumbstick pressed in.
   stick_press: {pin: 32, col: thumb, row: 3, cluster: stick}
   stick: {pin: 31, pin_two: 30, col: thumb, row: 0, kind: stick}
+# Added to the frozen copy on purpose (2026-11-15), so the editor's tests have the per-mode X.
+stick_invert_x:
+  mouse: false
+  xbox: false

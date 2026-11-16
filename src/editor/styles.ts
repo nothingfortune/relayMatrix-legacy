@@ -695,6 +695,7 @@ body.dragging-key .palette.drop-over { outline: none; }
 .stick-mode .note { margin: 4px 0 8px; }
 .stick-tuning { margin: 6px 0; }
 .stick-tuning summary { cursor: pointer; font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
+.stick-tuning .unsafe { font-size: var(--fs-1); font-weight: 400; color: var(--warn); }
 .ingame-tools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin: 4px 0 10px; }
 .ingame-help { flex: 1 1 320px; }
 .ingame-help summary { cursor: pointer; font-size: var(--fs-1); color: var(--muted); padding: 4px 0; }

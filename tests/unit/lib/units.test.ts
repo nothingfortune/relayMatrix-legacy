@@ -121,6 +121,24 @@ describe("compareUnit", () => {
     expect(row?.app).toContain("tuned:");
   });
 
+  it("names an inversion, the angle and the switches the app's copy holds otherwise", () => {
+    // The right unit's old import: X inverted, where the layout now writes it as it is.
+    const app = structuredClone(compiled("right"));
+    const layout = structuredClone(compiled("right"));
+    const held = record(app, 31).analogSettings;
+    const wanted = record(layout, 31).analogSettings;
+    if (!held || !wanted) throw new Error("no stick");
+    held.invertXAxis = true;
+    wanted.invertXAxis = false;
+    wanted.angle = 150;
+    held.isAngleLock = true;
+    const [row] = compareUnit(layout, app, right.device, game.actions);
+    expect(row?.layout).toContain("invert X off");
+    expect(row?.app).toContain("invert X on");
+    expect(row?.layout).toContain("angle 150");
+    expect(row?.app).toContain("angle lock on");
+  });
+
   it("does not call a setting the app's copy lacks a difference", () => {
     const app = structuredClone(compiled("right"));
     const layout = structuredClone(compiled("right"));

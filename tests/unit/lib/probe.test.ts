@@ -198,6 +198,20 @@ describe("deviceFromProbe", () => {
     expect(next.positions.pinky_5).toEqual(assumed.positions.pinky_5);
   });
 
+  it("carries the map's per-mode X through a press test, which only measures the keys", () => {
+    // The press test runs in keyboard mode on the template, so what it finds is the key swap;
+    // the pointer and Xbox X (stick_invert_x) is not its to measure and must survive a save.
+    const assumed: DeviceData = { ...assumedMap(), stick_invert_x: { mouse: false, xbox: false } };
+    const next = deviceFromProbe(assumed, {
+      pins: { pinky_1: 5 },
+      stick: { up: "up", right: "left", down: "down", left: "right" },
+    });
+    expect(next.stick_invert_x).toEqual({ mouse: false, xbox: false });
+    expect(deviceChanges(assumed, next)).toEqual([
+      "stick: right reads as left, left reads as right",
+    ]);
+  });
+
   it("omits a stick remap when the unit matches the left-handed assumption", () => {
     const next = deviceFromProbe(assumedMap(), { pins: { pinky_1: 5 }, stick: {} });
     expect(next.stick_directions).toBeUndefined();
