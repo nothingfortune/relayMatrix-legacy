@@ -59,6 +59,12 @@ check_fails "unknown command exits non-zero" ./bin/azeron nonsense
 check_fails "the cheatsheet command is gone" ./bin/azeron cheatsheet
 check "no generated HTML is tracked" bash -c '[ -z "$(git ls-files "*.html")" ]'
 check_fails "unknown game exits non-zero" ./bin/azeron lint no-such-game
+says "defaults lists the genres and their layouts" "FPS +controller, keyboard, default" ./bin/azeron defaults
+says "defaults prints a genre's pad" "^FPS: the Xbox pad" ./bin/azeron defaults FPS
+says "defaults prints the controller layout of the pair" "Like a controller \(controller\)" ./bin/azeron defaults FPS
+says "defaults prints the one unit layout asked for" "One unit \(default\)" ./bin/azeron defaults FPS --style default
+check_fails "defaults refuses a genre that is not there" ./bin/azeron defaults NoSuchGenre
+check_fails "defaults refuses a layout that is not there" ./bin/azeron defaults FPS --style nope
 # Refusals only: a game or layout that was made would be written into the frozen fixture.
 says "new needs a genre" "new needs a name and --genre" ./bin/azeron new Some Game
 says "new refuses a genre that is not there" "not a genre" ./bin/azeron new Some Game --genre Nope

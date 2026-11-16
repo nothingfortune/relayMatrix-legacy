@@ -24,6 +24,23 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Added
 
+- **A controller layout and an Xbox pad mapping for every genre, and the defaults drawn.**
+  RPG and Strategy had no pad controls and no `layouts.yaml`; they now have both (RPG: the left
+  stick walks the party, the right turns and zooms the camera, A and B are the mouse's buttons,
+  the bumpers, triggers and d-pad are hotbar 1 to 8; Strategy: the left stick is the pointer, in
+  mouse mode, A selects, X orders, B stops, the right stick pans, bumpers rotate, triggers
+  zoom, the d-pad is groups 1 to 4). Their pair still starts as the one-unit layout and an
+  empty right unit, as before: the `keyboard` style says it is the `default`. FPS gained a pad
+  control for `interact` (d-pad up; ping moved to left, the flashlight is under the fingers),
+  and SpaceSims for the travel and jump drives, which are required (Y and X, in place of next
+  primary and secondary, which are under the fingers). `azeron defaults [genre] [--style S]`
+  prints a genre's pad control by control and a layout of the pair, and the Setup tab has a
+  Defaults view (also a card on the Games screen) that draws both without starting a game, with
+  a button that opens the new-game form on that genre and layout. `lintGenre` now errors on an
+  `xbox:` that is not a pad control, two actions on one control and a style that will not
+  build, and warns on a menu on a button play presses. A style may say it is the `default`. A
+  stick in mouse mode now survives `startGame` (it was dropped as empty).
+
 - **Macros, the model.** Press one button and the game receives a list of keys. A game's
   `macros.yaml` gives an action a list (`abc: [KeyA, KeyB, KeyC]`), with a hold, a gap and
   `repeat` when wanted. Any of the action's three buttons starts it: its keypad `key` (a

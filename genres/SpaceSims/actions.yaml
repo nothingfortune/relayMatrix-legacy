@@ -51,18 +51,18 @@ actions:
   pointer_y:          {label: Pointer up/down,    provided_by: mouse,  axis: mouse_y, tags: [movement]}
 
   # --- travel -------------------------------------------------------------------
-  cruise:             {label: Travel drive, keyboard: KeyC, tags: [travel, required]}
-  supralight:         {label: Jump / supralight drive, keyboard: KeyJ, tags: [travel, required]}
+  cruise:             {label: Travel drive, keyboard: KeyC, xbox: Y, tags: [travel, required]}
+  supralight:         {label: Jump / supralight drive, keyboard: KeyJ, xbox: X, tags: [travel, required]}
 
   # --- weapons ------------------------------------------------------------------
   fire_primary:       {label: Fire primary, keyboard: MouseLeft, xbox: RT, tags: [combat]}
   fire_secondary:     {label: Fire secondary, keyboard: MouseRight, xbox: LT, tags: [combat]}
-  next_primary:       {label: Next primary, keyboard: WheelUp, xbox: Y, tags: [combat]}
+  next_primary:       {label: Next primary, keyboard: WheelUp, tags: [combat]}
   previous_primary:   {label: Previous primary,  tags: [combat]}
   equip_primary_1:    {label: Equip primary 1, keyboard: Digit1, tags: [combat]}
   equip_primary_2:    {label: Equip primary 2, keyboard: Digit2, tags: [combat]}
   equip_primary_3:    {label: Equip primary 3, keyboard: Digit3, tags: [combat]}
-  next_secondary:     {label: Next secondary, keyboard: WheelDown, xbox: X, tags: [combat]}
+  next_secondary:     {label: Next secondary, keyboard: WheelDown, tags: [combat]}
   previous_secondary: {label: Previous secondary, tags: [combat]}
   secondary_1:        {label: Equip secondary 1, keyboard: Digit4, tags: [combat]}
   secondary_2:        {label: Equip secondary 2, keyboard: Digit5, tags: [combat]}

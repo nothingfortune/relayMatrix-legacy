@@ -172,6 +172,8 @@ export class Genre {
   readonly lintConfig: LintConfig;
   /** The styles a new game can start in (layouts.yaml); empty when it has none. */
   readonly styles: Record<string, StyleSpec>;
+  /** The genre's stick modes (stick-modes.yaml), when it defines any. */
+  readonly stickModes: StickModeSet | undefined;
 
   constructor(dir: string) {
     this.rel = dataRelativePath(dir);
@@ -182,6 +184,7 @@ export class Genre {
     this.lintConfig = this.config.lint ?? {};
     const layouts = join(this.rel, "layouts.yaml");
     this.styles = existsSync(repoPath(layouts)) ? parseStyles(loadYaml(layouts), layouts) : {};
+    this.stickModes = loadStickModes(this.rel);
   }
 
   defaultProfile(): Profile {

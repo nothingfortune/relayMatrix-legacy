@@ -1,0 +1,48 @@
+# What a new strategy game starts with: a pair of units, in one of two styles. See
+# genres/FPS/layouts.yaml for what each part means.
+#
+# keyboard    the one-unit default on the left unit, with the mouse in the other hand, and
+#             nothing on the right unit: what a pair started with before there were styles,
+#             and still the default.
+# controller  the pair held like an Xbox pad, as a console strategy game plays: the left
+#             stick is the pointer (the unit's stick in mouse mode, `stick` below), A
+#             selects, X orders, B stops, the right stick pans, the bumpers rotate and the
+#             triggers zoom, the d-pad is control groups 1 to 4. Every action with an
+#             `xbox:` control in actions.yaml goes where that control sits; `azeron defaults
+#             Strategy` and the editor's Setup tab draw it. `left` and `right` below are for
+#             what no pad control carries: group 5, the other orders and abilities, speed,
+#             and the menus. The pad has no mouse, so the stick is one.
+keyboard:
+  label: Like a keyboard
+  default: true
+  note: >-
+    The one-unit layout on the left, with the mouse in the other hand. The right unit starts
+    empty.
+  left: default
+
+controller:
+  label: Like a controller
+  note: >-
+    Left stick is the pointer, A selects, X orders, B stops, right stick pans, bumpers rotate,
+    triggers zoom, the d-pad is control groups -- an Xbox pad laid over the pair.
+  # With no mouse, A and X send the mouse's two buttons from keys, as a shooter's triggers do.
+  actions:
+    select: {provided_by: null, mouse: left}
+    command: {provided_by: null, mouse: right}
+  left:
+    # The pad's stick is the mouse. A pointer speed of 5 is the app's own default.
+    stick: {mode: mouse, mouse_sensitivity: 5}
+    pinky_1: {label: Ability 1, tap: ability_1}
+    pinky_2: {label: Ability 2, tap: ability_2}
+    pinky_3: {label: Ability 3, tap: ability_3}
+    pinky_4: {label: Ability 4, tap: ability_4}
+    ring_1: {label: Group 5, tap: group_5}
+    middle_1: {label: Select idle units, tap: select_idle}
+    index_5: {label: Outliner, tap: outliner}
+    middle_5: {label: Research, tap: research}
+    ring_5: {label: Quick save, tap: quick_save}
+  right:
+    ring_2: {label: Slower, tap: speed_down}
+    ring_3: {label: Faster, tap: speed_up}
+    middle_2: {label: Hold position, tap: hold_position}
+    middle_3: {label: Retreat, tap: retreat}

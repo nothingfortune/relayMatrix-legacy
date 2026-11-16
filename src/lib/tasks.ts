@@ -48,7 +48,7 @@ import {
   loadTemplate,
   writeText,
 } from "./io.js";
-import { buildStyle, STYLE_ORDER } from "./styles.js";
+import { buildStyle, styleNames } from "./styles.js";
 import { currentWrite, layoutFingerprint } from "./written.js";
 import type { LoadedPedals } from "./io.js";
 import { capturePedals, ingamePlan, parseSets, planAxes, recordCandidateNames } from "./pedals.js";
@@ -674,9 +674,7 @@ export function startGame(request: StartGameRequest): StartGameResult {
   if (!paired && request.style !== undefined) {
     throw new ScaffoldError("a style lays out both units: choose the left unit and the right one");
   }
-  const styleName = !paired
-    ? null
-    : (request.style ?? STYLE_ORDER.find((name) => name in genre.styles) ?? null);
+  const styleName = !paired ? null : (request.style ?? styleNames(genre.styles)[0] ?? null);
   const style = styleName === null ? undefined : genre.styles[styleName];
   if (styleName !== null && style === undefined) {
     const have = Object.keys(genre.styles);
@@ -819,7 +817,10 @@ export function startGame(request: StartGameRequest): StartGameResult {
           removeKey(spec.directions, direction);
         }
       }
+      // A stick in another mode than keys (the pointer) holds nothing and is still the layout.
+      const otherMode = spec.mode !== undefined && spec.mode !== "keyboard";
       if (
+        !otherMode &&
         !SLOTS.some((slot) => spec[slot] !== undefined) &&
         Object.keys(spec.directions ?? {}).length === 0
       ) {

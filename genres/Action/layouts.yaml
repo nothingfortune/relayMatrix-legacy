@@ -1,5 +1,9 @@
 # What a new action game starts with: a pair of units, in one of two styles. See
 # genres/FPS/layouts.yaml for what each part means.
+#
+# The pad's own mapping is the `xbox:` column of actions.yaml (`azeron defaults Action`).
+# It has no control for crouch, mount, throw, abilities 1 and 2, weapons 1 to 4, sense,
+# inventory, journal, character or the quick save and load, so the keys below carry them.
 controller:
   label: Like a controller
   note: >-

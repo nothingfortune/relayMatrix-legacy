@@ -7,6 +7,10 @@
 #
 # The vocabulary is bigger than the pool of keys the editor hands out, so neither style
 # places everything; the rest are in the action list, to put on a control by hand.
+#
+# The pad's own mapping is the `xbox:` column of actions.yaml (`azeron defaults SpaceSims`).
+# The travel and jump drives are required, so they are on Y and X; the weapon cycling that
+# had those buttons is under the fingers instead, with the other weapons.
 controller:
   label: Like a controller
   note: >-
@@ -14,8 +18,7 @@ controller:
     laid over the pair, with the consumables and devices in banks under the fingers.
   stick_mode: twin_stick
   left:
-    index_1: {label: Travel drive, tap: cruise}
-    index_4: {label: Jump drive, tap: supralight}
+    index_1: {label: Next primary, tap: next_primary}
     pinky_1: {label: Consumable 1, tap: consume_1}
     pinky_2: {label: Consumable 2, tap: consume_2}
     pinky_3: {label: Consumable 3, tap: consume_3}
@@ -30,6 +33,7 @@ controller:
     ring_5: {label: Missions, tap: missions}
     middle_5: {label: Ship, tap: ship_menu}
   right:
+    index_1: {label: Next secondary, tap: next_secondary}
     pinky_1: {label: Device 1, tap: device_1}
     pinky_2: {label: Device 2, tap: device_2}
     pinky_3: {label: Device 3, tap: device_3}

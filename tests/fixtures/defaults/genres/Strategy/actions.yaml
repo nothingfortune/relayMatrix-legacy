@@ -1,0 +1,76 @@
+# Shared action vocabulary for strategy games, real-time and grand: Stellaris, Distant
+# Worlds 2, Dawn of War, Battlefleet Gothic: Armada, Nebulous: Fleet Command and the like --
+# units chosen and ordered with the mouse, groups and orders on keys, time to stop and start.
+#
+# No keys here: a genre says which ROLES a game has, a game says which keys they are
+# bound to. Start a game's actions.yaml with `extends: genres/Strategy/actions.yaml`.
+#
+# `keyboard:` is the key or mouse button a game usually puts the action on; a suggestion,
+# never sent: see genres/FPS/actions.yaml.
+#
+# These games are played with a mouse, so the one-unit default is a unit beside it, and a
+# pair starts with that on the left and the right empty (layouts.yaml, `keyboard`).
+# Console strategy games are played on a pad with the pointer on the left stick, and
+# `xbox:` is the control a pad would put the action on: the `controller` style lays the
+# pair out that way, the left stick as the mouse (src/lib/xbox.ts). A pad has sixteen
+# buttons and a strategy game far more orders, so the lesser ones have no control and are
+# left to the units' fingers in the style.
+#
+# Selecting and ordering are the mouse's, `provided_by` and excluded from the coverage
+# check. In the one-unit default the stick pans the camera.
+genre: Strategy
+
+actions:
+  # --- the mouse ----------------------------------------------------------------
+  select:         {label: Select, provided_by: mouse, keyboard: MouseLeft, xbox: A, tags: [combat, required]}
+  command:        {label: Move / attack order, provided_by: mouse, keyboard: MouseRight, xbox: X, tags: [combat, required]}
+
+  # --- the pointer, on a pad ----------------------------------------------------
+  # The left stick is the mouse: the style puts the unit's stick in mouse mode, and these
+  # four are what the pad's stick means. Nothing sends them.
+  pointer_up:     {label: Pointer up, provided_by: mouse, xbox: LeftStickUp, tags: [movement]}
+  pointer_down:   {label: Pointer down, provided_by: mouse, xbox: LeftStickDown, tags: [movement]}
+  pointer_left:   {label: Pointer left, provided_by: mouse, xbox: LeftStickLeft, tags: [movement]}
+  pointer_right:  {label: Pointer right, provided_by: mouse, xbox: LeftStickRight, tags: [movement]}
+
+  # --- the camera ---------------------------------------------------------------
+  camera_up:      {label: Pan up, keyboard: KeyW, xbox: RightStickUp, tags: [movement]}
+  camera_down:    {label: Pan down, keyboard: KeyS, xbox: RightStickDown, tags: [movement]}
+  camera_left:    {label: Pan left, keyboard: KeyA, xbox: RightStickLeft, tags: [movement]}
+  camera_right:   {label: Pan right, keyboard: KeyD, xbox: RightStickRight, tags: [movement]}
+  rotate_left:    {label: Rotate left, keyboard: KeyQ, xbox: LB, tags: [movement]}
+  rotate_right:   {label: Rotate right, keyboard: KeyE, xbox: RB, tags: [movement]}
+  zoom_in:        {label: Zoom in, keyboard: WheelUp, xbox: RT, tags: [movement]}
+  zoom_out:       {label: Zoom out, keyboard: WheelDown, xbox: LT, tags: [movement]}
+  focus:          {label: Centre on selection, keyboard: Backspace, xbox: RS, tags: [movement]}
+
+  # --- groups -------------------------------------------------------------------
+  group_1:        {label: Group 1, keyboard: Digit1, xbox: DpadUp, tags: [combat]}
+  group_2:        {label: Group 2, keyboard: Digit2, xbox: DpadRight, tags: [combat]}
+  group_3:        {label: Group 3, keyboard: Digit3, xbox: DpadDown, tags: [combat]}
+  group_4:        {label: Group 4, keyboard: Digit4, xbox: DpadLeft, tags: [combat]}
+  group_5:        {label: Group 5, keyboard: Digit5, tags: [combat]}
+  select_idle:    {label: Select idle units, keyboard: KeyG, tags: [utility]}
+
+  # --- orders -------------------------------------------------------------------
+  attack_move:    {label: Attack move, keyboard: KeyF, xbox: Y, tags: [combat]}
+  stop:           {label: Stop, keyboard: KeyX, xbox: B, tags: [combat]}
+  hold_position:  {label: Hold position, keyboard: KeyH, tags: [combat]}
+  retreat:        {label: Retreat, keyboard: KeyR, tags: [combat]}
+  ability_1:      {label: Ability 1, keyboard: KeyZ, tags: [combat]}
+  ability_2:      {label: Ability 2, keyboard: KeyC, tags: [combat]}
+  ability_3:      {label: Ability 3, keyboard: KeyV, tags: [combat]}
+  ability_4:      {label: Ability 4, keyboard: KeyB, tags: [combat]}
+
+  # --- time ---------------------------------------------------------------------
+  pause:          {label: Pause, keyboard: Space, xbox: LS, tags: [utility]}
+  speed_up:       {label: Faster, tags: [utility]}
+  speed_down:     {label: Slower, tags: [utility]}
+
+  # --- menus --------------------------------------------------------------------
+  map:            {label: Map / galaxy view, keyboard: KeyM, xbox: View, tags: [menu]}
+  outliner:       {label: Outliner / fleet list, keyboard: KeyL, tags: [menu]}
+  research:       {label: Research, keyboard: KeyT, tags: [menu]}
+  quick_save:     {label: Quick save, keyboard: F5, tags: [menu]}
+  menu_main:      {label: Main menu, keyboard: Escape, xbox: Menu, tags: [menu],
+                   note: "Constraint 5 -- this is Escape. Keep it off anything mashable."}

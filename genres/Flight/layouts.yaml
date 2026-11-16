@@ -1,6 +1,10 @@
 # What a new flight game starts with: a pair of units, in one of two styles. See
 # genres/FPS/layouts.yaml for what each part means.
 #
+# The pad's own mapping is the `xbox:` column of actions.yaml (`azeron defaults Flight`),
+# which has a control for every action. B, LT and both stick clicks have none to carry; the
+# second target and flare keys below are for a hand that wants them under the fingers.
+#
 # Both styles fly Mode 2 (stick-modes.yaml): throttle and yaw on the left stick, pitch and
 # roll on the right, like a pad's twin sticks and like a flight stick.
 controller:

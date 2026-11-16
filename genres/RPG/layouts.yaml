@@ -1,0 +1,52 @@
+# What a new party RPG starts with: a pair of units, in one of two styles. See
+# genres/FPS/layouts.yaml for what each part means.
+#
+# keyboard    the one-unit default on the left unit, with the mouse in the other hand, and
+#             nothing on the right unit: what a pair started with before there were styles,
+#             and still the default.
+# controller  the pair held like an Xbox pad, as Baldur's Gate 3 and Divinity: Original Sin 2
+#             play on one: the left stick walks the party, the right turns and zooms the
+#             camera, A selects, B cancels, the bumpers and triggers are hotbar 1 to 4 and
+#             the d-pad 5 to 8. Every action with an `xbox:` control in actions.yaml goes
+#             where that control sits; `azeron defaults RPG` and the editor's Setup tab
+#             draw it. `left` and `right` below are for what no pad control carries: the
+#             rest of the hotbar, party selection, jumping, combat mode, the camera's pan
+#             and the menus. There is no mouse, so nothing here replaces one.
+keyboard:
+  label: Like a keyboard
+  default: true
+  note: >-
+    The one-unit layout on the left, with the mouse in the other hand. The right unit starts
+    empty.
+  left: default
+
+controller:
+  label: Like a controller
+  note: >-
+    Left stick walks the party, right stick turns and zooms the camera, A selects, B
+    cancels, the bumpers and triggers are the first four hotbar slots, the d-pad the next
+    four -- an Xbox pad laid over the pair.
+  # With no mouse, A and B send the mouse's two buttons from keys, as a shooter's triggers do.
+  actions:
+    select_move: {provided_by: null, mouse: left}
+    context: {provided_by: null, mouse: right}
+  left:
+    pinky_1: {label: Select character 1, tap: character_1}
+    pinky_2: {label: Select character 2, tap: character_2}
+    pinky_3: {label: Select character 3, tap: character_3}
+    pinky_4: {label: Select character 4, tap: character_4}
+    ring_1: {label: Hotbar 9, tap: hotbar_9}
+    ring_2: {label: Hotbar 10, tap: hotbar_10}
+    middle_1: {label: Jump, tap: jump}
+    middle_2: {label: Enter turn-based mode, tap: toggle_combat}
+    index_5: {label: Inventory, tap: inventory}
+    middle_5: {label: Character sheet, tap: character}
+    ring_5: {label: Spells, tap: spellbook}
+    pinky_5: {label: Journal, tap: journal}
+  right:
+    ring_1: {label: Camera left, tap: camera_left}
+    ring_2: {label: Camera forward, tap: camera_up}
+    ring_3: {label: Camera back, tap: camera_down}
+    ring_4: {label: Camera right, tap: camera_right}
+    ring_5: {label: Quick save, tap: quick_save}
+    pinky_5: {label: Quick load, tap: quick_load}
