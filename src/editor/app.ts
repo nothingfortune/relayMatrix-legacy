@@ -6093,7 +6093,7 @@ function macrosHost(game: EditorGame): MacrosHost {
     kbmField,
     padField,
     add(label, def) {
-      const id = newActionId(label, actions);
+      const id = newActionId(label, { ...actions, ...macros });
       // Tried on copies first: a macro with no trigger left, or keys the game cannot type,
       // would be saved as an error, so it is refused here instead.
       const probe = structuredClone(actions);

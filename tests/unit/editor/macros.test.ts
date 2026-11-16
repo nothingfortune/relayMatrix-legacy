@@ -191,6 +191,14 @@ describe("the Macros panel", () => {
     expect(field<HTMLInputElement>(document, '[data-macro-new="name"]').value).toBe("");
   });
 
+  it("never reuses the id of a macro whose action is missing", () => {
+    mount(payloadWith({ ghost: { steps: [{ tap: "KeyA" }] } }));
+    tab("In-game");
+    addMacroNamed("Ghost", "B");
+    expect(keysOf("ghost")).toBe("A");
+    expect(keysOf("ghost_2")).toBe("B");
+  });
+
   it("adds with Enter in either box", () => {
     mount();
     tab("In-game");

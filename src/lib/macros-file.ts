@@ -6,7 +6,7 @@
  * Node-free, because the editor imports it.
  */
 
-import { isMap, parseDocument, YAMLMap, YAMLSeq } from "yaml";
+import { isMap, isSeq, parseDocument, YAMLMap, YAMLSeq } from "yaml";
 import type { Document } from "yaml";
 
 import type { MacroDef, MacroStep, MacroTarget } from "./macros.js";
@@ -48,6 +48,31 @@ function macroNode(doc: Document, def: MacroDef): unknown {
 }
 
 /**
+ * A macro that is already a mapping, brought to `def` in place: a setting is changed or
+ * added before `steps`, and `steps` is only rewritten when it says something else, so a
+ * comment on any other line of it stays.
+ */
+function updateMapping(doc: Document, map: YAMLMap, def: MacroDef): void {
+  for (const field of ["repeat", "hold", "gap"] as const) {
+    const value = def[field];
+    if (value === undefined) {
+      map.delete(field);
+    } else if (map.has(field)) {
+      map.set(field, value);
+    } else {
+      const at = map.items.findIndex((pair) => String(pair.key) === "steps");
+      map.items.splice(at < 0 ? map.items.length : at, 0, doc.createPair(field, value));
+    }
+  }
+  const wanted = def.steps.map(stepValue);
+  const current = map.get("steps", true);
+  if (isSeq(current) && JSON.stringify(current.toJSON()) === JSON.stringify(wanted)) return;
+  const steps = doc.createNode(wanted) as YAMLSeq;
+  steps.flow = true;
+  map.set("steps", steps);
+}
+
+/**
  * The file with one macro set (`def`) or taken out (`null`). Every other line stays as it
  * was. An empty or missing file becomes one with the header, and a file left with no macros
  * keeps `macros: {}`, which is never an empty file.
@@ -64,7 +89,9 @@ export function patchMacro(text: string, id: string, def: MacroDef | null): stri
   if (def === null) {
     section.delete(id);
   } else {
-    section.set(id, macroNode(doc, def));
+    const current = section.get(id, true);
+    if (isMap(current) && !isPlainList(def)) updateMapping(doc, current, def);
+    else section.set(id, macroNode(doc, def));
   }
   // `macros: {}` is how an empty file says so; with a macro in it, it is a block like the rest.
   if (wasEmpty && section.items.length > 0) section.flow = false;

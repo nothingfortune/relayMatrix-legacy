@@ -67,6 +67,38 @@ describe("patchMacro", () => {
     expect(read(text).quick_heal?.repeat).toBe(true);
   });
 
+  it("edits a macro that has settings in place, keeping the comments inside it", () => {
+    const stepsOnly = patchMacro(ORIGINAL, "quick_heal", {
+      repeat: true,
+      gap: 20,
+      steps: [{ tap: "KeyH" }, { wait: 50 }],
+    });
+    // Said the same: not a character moves.
+    expect(stepsOnly).toBe(ORIGINAL);
+    const hold = patchMacro(ORIGINAL, "quick_heal", {
+      repeat: true,
+      hold: 40,
+      gap: 20,
+      steps: [{ tap: "KeyH" }, { wait: 50 }],
+    });
+    expect(hold).toContain("repeat: true # hold to keep healing");
+    expect(hold).toContain("# the heal");
+    expect(hold.indexOf("hold: 40")).toBeLessThan(hold.indexOf("steps:"));
+    const steps = patchMacro(ORIGINAL, "quick_heal", {
+      repeat: true,
+      gap: 20,
+      steps: [{ tap: "KeyH" }, { tap: "KeyJ" }],
+    });
+    expect(steps).toContain("repeat: true # hold to keep healing");
+    expect(read(steps).quick_heal?.steps).toEqual([{ tap: "KeyH" }, { tap: "KeyJ" }]);
+    const unset = patchMacro(ORIGINAL, "quick_heal", { gap: 20, steps: [{ tap: "KeyH" }] });
+    expect(unset).not.toContain("repeat");
+    expect(read(unset).quick_heal).toEqual({ gap: 20, steps: [{ tap: "KeyH" }] });
+    // With no settings left it is a plain list again.
+    const plain = patchMacro(ORIGINAL, "quick_heal", { steps: [{ tap: "KeyH" }] });
+    expect(plain).toContain("quick_heal: [KeyH]");
+  });
+
   it("takes one out", () => {
     const text = patchMacro(ORIGINAL, "abc", null);
     expect(Object.keys(read(text))).toEqual(["quick_heal"]);
