@@ -187,6 +187,56 @@ describe("resolveMacro", () => {
     ]);
   });
 
+  it("leaves a key an explicit down is holding alone when a tap shares it", () => {
+    // down Shift, tap Shift+A, tap B, up Shift: the tap must not lift the Shift, or B is bare.
+    const { ops, problems } = resolveMacro(
+      def([{ down: "ShiftLeft" }, { tap: "ShiftLeft+KeyA" }, { tap: "KeyB" }, { up: "ShiftLeft" }]),
+      ACTIONS,
+    );
+    expect(problems).toEqual([]);
+    expect(ops).toEqual([
+      down("ShiftLeft"),
+      down("KeyA"),
+      wait(30),
+      up("KeyA"),
+      wait(30),
+      down("KeyB"),
+      wait(30),
+      up("KeyB"),
+      up("ShiftLeft"),
+    ]);
+  });
+
+  it("does the same when the chord comes from an action", () => {
+    const { ops } = resolveMacro(
+      def([{ down: "ControlLeft" }, { tap: { action: "crouch" } }, { up: "ControlLeft" }]),
+      ACTIONS,
+    );
+    expect(ops).toEqual([
+      down("ControlLeft"),
+      down("KeyC"),
+      wait(30),
+      up("KeyC"),
+      up("ControlLeft"),
+    ]);
+  });
+
+  it("presses a held key's modifiers again once it has been let go", () => {
+    const { ops } = resolveMacro(
+      def([{ down: "ShiftLeft" }, { up: "ShiftLeft" }, { tap: "ShiftLeft+KeyA" }]),
+      ACTIONS,
+    );
+    expect(ops).toEqual([
+      down("ShiftLeft"),
+      up("ShiftLeft"),
+      down("ShiftLeft"),
+      down("KeyA"),
+      wait(30),
+      up("KeyA"),
+      up("ShiftLeft"),
+    ]);
+  });
+
   it("presses the mouse buttons", () => {
     expect(resolveMacro(def([{ down: { action: "fire" } }]), ACTIONS).ops).toEqual([
       { op: "down", input: { mouse: "left" } },

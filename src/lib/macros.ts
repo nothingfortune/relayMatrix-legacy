@@ -235,6 +235,11 @@ export function resolveMacro(
   }
   if (gap > MACRO_LIMITS.waitMs) problems.push(`gap is over ${String(MACRO_LIMITS.waitMs)} ms`);
   let waited = 0;
+  // What an explicit `down` step is holding, so a tap that shares a key with it leaves that
+  // key as it is: lifting a held Shift at the end of a Shift+A tap would type the next key bare.
+  const held = new Set<string>();
+  const inputName = (input: MacroInput): string =>
+    "key" in input ? `key:${input.key}` : `mouse:${input.mouse}`;
   def.steps.forEach((step, index) => {
     const at = `step ${String(index + 1)}`;
     if (step.wait !== undefined) {
@@ -260,16 +265,24 @@ export function resolveMacro(
     const downs: MacroOp[] = pressed.map((input) => ({ op: "down", input }));
     const ups: MacroOp[] = [...pressed].reverse().map((input) => ({ op: "up", input }));
     if (step.tap === undefined) {
+      for (const input of pressed) {
+        if (step.down === undefined) held.delete(inputName(input));
+        else held.add(inputName(input));
+      }
       ops.push(...(step.down === undefined ? ups : downs));
       return;
     }
+    // A tap presses and lifts only what is not already held.
+    const free = pressed.filter((input) => !held.has(inputName(input)));
+    const tapDowns: MacroOp[] = free.map((input) => ({ op: "down", input }));
+    const tapUps: MacroOp[] = [...free].reverse().map((input) => ({ op: "up", input }));
     const hold = step.hold ?? holdDefault;
     if (step.hold !== undefined && hold > MACRO_LIMITS.holdMs) {
       problems.push(`${at}: hold is over ${String(MACRO_LIMITS.holdMs)} ms`);
       return;
     }
     waited += hold;
-    ops.push(...downs, { op: "wait", ms: hold }, ...ups);
+    ops.push(...tapDowns, { op: "wait", ms: hold }, ...tapUps);
     // A pause before the next key, when the next step is a key too: the game reads each.
     const next = def.steps[index + 1];
     if (next?.tap !== undefined && gap > 0) {
