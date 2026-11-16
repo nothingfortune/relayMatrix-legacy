@@ -21,12 +21,14 @@ import {
   loadPedalsDevice,
   loadProfile,
   loadProfileData,
+  loadMacros,
   loadSets,
   loadStickModes,
 } from "./io.js";
 import type { LoadedPedals } from "./io.js";
 import type { ActionSet, GameLike } from "./model-core.js";
 import { Profile } from "./model-core.js";
+import type { MacrosData } from "./macros.js";
 import type { StickModeSet } from "./stickmodes.js";
 import { parseStyles } from "./styles.js";
 import type { StyleSpec } from "./styles.js";
@@ -46,6 +48,8 @@ export class Game implements GameLike {
   readonly lintConfig: LintConfig;
   /** The parts of a layout that belong to no single profile: today, its pedals. */
   readonly sets: SetsData;
+  /** The macros typed off trigger keys: macros.yaml, empty when the game has none. */
+  readonly macros: MacrosData;
   /**
    * Where each of game.yaml's outside paths led on this machine. `config` holds the place
    * found (or, when none was, the first place looked), so every reader sees one path.
@@ -73,6 +77,7 @@ export class Game implements GameLike {
     this.actions = loadActionSet(join(this.rel, "actions.yaml"));
     this.lintConfig = this.config.lint ?? {};
     this.sets = loadSets(this.rel);
+    this.macros = loadMacros(this.rel);
   }
 
   /** The stick modes of this game's genre, which also name the axes pedals can drive. */

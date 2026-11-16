@@ -249,6 +249,16 @@ RC throttle is vertical, pitch is thrust, roll is strafe, and yaw is yaw — and
 ship has six axes and two thumbs (the d-pad is under the same thumb as the stick), so
 which four go on the sticks is a choice; roll is not a stand-in for yaw.
 
+**Macros: one button, a list of keys, typed by a helper.** The units store none of a macro (the app
+types it), so a macro is an action whose list of keys lives in the game's `macros.yaml`
+(`src/lib/macros.ts`: `abc: [KeyA, KeyB, KeyC]`, a bare key is a tap, `hold` and `gap` default to
+30 ms). Any of the action's buttons starts it: its `key` (a keypad trigger, F13-F24,
+`wireTrigger`), its `kbm` (one plain key) or its `pad` (a controller button). `azeron build`
+compiles them to `dist/<game>/macros.json`, a gated fixed point; `macro-invalid` and
+`macro-trigger` are errors. `MacroRunner` (`macrorun.ts`) types a program behind `MacroIo`; tests use
+a fake, never a real keyboard. The unit's own press reports (`BTN_POS`) are not used: no capture
+of what asks for them exists. See `docs/plans/macros.md`.
+
 **Pedals are a modifier on the stick mode, and part of the layout.** Rudder pedals carry
 yaw, so a stick that still sends it duplicates them. `stick-modes.yaml` says which axes
 pedals take (`pedals.takes`) and each mode's `with_pedals` which slots to replace — in

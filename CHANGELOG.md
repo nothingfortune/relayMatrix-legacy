@@ -13,6 +13,15 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Added
 
+- **Macros, the model.** Press one button and the game receives a list of keys. A game's
+  `macros.yaml` gives an action a list (`abc: [KeyA, KeyB, KeyC]`), with a hold, a gap and
+  `repeat` when wanted. Any of the action's three buttons starts it: its keypad `key` (a
+  trigger, F13-F24, from `wireTrigger`), its `kbm` (one plain key) or its `pad` (a controller
+  button). `azeron build` compiles it to `dist/<game>/macros.json` and `--check` holds it to the
+  gate; `macro-invalid` and `macro-trigger` are errors. `MacroRunner` types it against a fake
+  keyboard in tests. Nothing runs on a PC yet: the editor and the Windows helper follow.
+  `docs/plans/macros.md` has the design.
+
 - **Swap left and right.** The write bar and the press test bar swap which unit is which hand
   in `local.yaml`, both at once, for a unit named for the wrong hand.
 

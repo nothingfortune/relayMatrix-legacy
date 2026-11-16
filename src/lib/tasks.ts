@@ -58,6 +58,7 @@ import type { NameStatus } from "../types/pedals.js";
 import { ERROR, WARNING, formatFinding, lintGame, lintGenre } from "./lint.js";
 import type { Finding, LintResult } from "./lint.js";
 import { loadLocal, setLocalDeviceId, setLocalDeviceIds, setLocalGamePath } from "./machine.js";
+import { compileMacros, dumpMacros } from "./macros.js";
 import type { MachinePathField } from "./machine.js";
 import { Game, Genre } from "./model.js";
 import type { Profile } from "./model-core.js";
@@ -145,8 +146,50 @@ export function buildAll(games: readonly Game[], check = false): BuildResult {
       }
       built.push(entry);
     }
+    buildMacroProgram(game, check, built, errors);
   }
   return { built, errors };
+}
+
+/**
+ * A game's macros compiled into dist/<game>/macros.json, which the helper runs. A game with
+ * none has no file; one left behind by macros since deleted is stale (checked) or removed.
+ */
+function buildMacroProgram(
+  game: Game,
+  check: boolean,
+  built: BuiltProfile[],
+  errors: string[],
+): void {
+  const outPath = posixJoin(game.distDir(), "macros.json");
+  const exists = existsSync(repoPath(outPath));
+  const source = posixJoin(game.rel, "macros.yaml");
+  if (Object.keys(game.macros.macros).length === 0) {
+    if (!exists) return;
+    if (check) {
+      errors.push(`stale: ${outPath} has no macros in ${source}`);
+      built.push({ profile: source, output: outPath, changed: true });
+    } else {
+      rmSync(repoPath(outPath), { force: true });
+      built.push({ profile: source, output: outPath, changed: true });
+    }
+    return;
+  }
+  const { program, problems } = compileMacros(game.macros, game.actions.actions);
+  if (problems.length > 0) {
+    for (const problem of problems) {
+      errors.push(`${source}: ${problem.macro}: ${problem.message}`);
+    }
+    return;
+  }
+  const text = dumpMacros(program);
+  const changed = !exists || readFileSync(repoPath(outPath), "utf8") !== text;
+  if (check) {
+    if (changed) errors.push(`stale: ${outPath} does not match ${source}`);
+  } else if (changed) {
+    writeText(outPath, text);
+  }
+  built.push({ profile: source, output: outPath, changed });
 }
 
 export interface LintSummary {

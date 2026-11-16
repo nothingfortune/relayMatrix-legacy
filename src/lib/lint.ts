@@ -20,6 +20,8 @@ import type {
 } from "../types/profile.js";
 import type { ActionSet, Profile } from "./model-core.js";
 import { needsWire } from "./wiring.js";
+import { compileMacros } from "./macros.js";
+import type { MacrosData } from "./macros.js";
 import { actionsLiveTogether, layoutModes, liveTogether, playsAction } from "./modes.js";
 import type { LiveTogether } from "./modes.js";
 import type { Game, Genre } from "./model.js";
@@ -1019,12 +1021,27 @@ export function layoutContextFor(game: Game, complete: boolean): LayoutContext {
 }
 
 export function lintGame(game: Game, profiles?: readonly Profile[]): LintResult {
-  return lintProfiles(
+  const result = lintProfiles(
     game.actions,
     profiles ?? game.loadedProfiles(),
     game.lintConfig,
     layoutContextFor(game, profiles === undefined),
   );
+  const macros = macroFindings(game.macros, game.actions.actions);
+  return macros.length === 0 ? result : { ...result, live: [...result.live, ...macros] };
+}
+
+/** What is wrong with a game's macros: each is an error, and none can be accepted. */
+export function macroFindings(
+  data: MacrosData,
+  actions: Readonly<Record<string, ActionSpec>>,
+): Finding[] {
+  return compileMacros(data, actions).problems.map((problem) => ({
+    level: ERROR,
+    rule: problem.rule,
+    key: problem.macro,
+    message: problem.message,
+  }));
 }
 
 /**
