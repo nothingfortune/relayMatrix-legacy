@@ -151,7 +151,7 @@ describe("writing the layout into the units", () => {
       expect(bar()).toContain("Right unit (29993) →");
     }, WAIT);
     expect(document.querySelectorAll(".write-settings")).toHaveLength(0);
-    expect(bar()).toContain("The slot's lights stay as they are.");
+    expect(bar()).toContain("Lights are kept.");
     expect(bar()).not.toMatch(/sensor|DPI/);
   });
 
@@ -172,7 +172,7 @@ describe("writing the layout into the units", () => {
     const notes = [...document.querySelectorAll(".write-settings")].map((note) => note.textContent);
     expect(notes).toHaveLength(2);
     expect(notes[0]).toContain(
-      "Not written yet: the layout wants the sensor on and DPI step 2 (4000 DPI)",
+      "Not written: the layout wants the sensor on and DPI step 2 (4000 DPI)",
     );
     expect(notes[0]).toContain(
       "The slot's DPI steps are 800, 1600, 3200, 6400, 12800; the layout's are 1000, 4000, 7500, 10000, 15000.",
@@ -272,7 +272,7 @@ describe("writing the layout into the units", () => {
     plugIn([makeUnit("left"), makeUnit("right", {}, appWritten as InputRecord[])]);
     await writeToUnits();
     await vi.waitFor(() => {
-      expect(bar()).toContain("This changes how the right unit's stick is inverted");
+      expect(bar()).toContain("Changes the right unit's stick inversion");
     }, WAIT);
     expect(bar()).toContain("stick inverts X is false on the unit, true in the layout");
     expect(bar()).toContain("stick inverts Y is true on the unit, false in the layout");
@@ -282,7 +282,7 @@ describe("writing the layout into the units", () => {
     Object.defineProperty(navigator, "hid", { configurable: true, value: undefined });
     await writeToUnits();
     await vi.waitFor(() => {
-      expect(bar()).toContain("This browser has no WebHID");
+      expect(bar()).toContain("No WebHID in this browser");
     }, WAIT);
     expect(barButton("Try again")).toBeTruthy();
   });
@@ -357,7 +357,7 @@ describe("a write that is changed or stopped part way", () => {
     left.unit.received.length = 0;
     barButton("Write").click();
     await vi.waitFor(() => {
-      expect(bar()).toContain("The layout changed since this was worked out");
+      expect(bar()).toContain("The layout changed: units checked again");
     }, WAIT);
     expect(left.unit.received.some((report) => report[2] === Command.OBM_COPY)).toBe(false);
   });
@@ -375,6 +375,64 @@ describe("a write that is changed or stopped part way", () => {
     layout.value = other.value;
     layout.dispatchEvent(new Event("change"));
     expect(document.querySelector(".write-bar")).toBeNull();
+  });
+});
+
+describe("a unit named for the wrong hand", () => {
+  const SERVED = window as unknown as { AZERON_SERVED?: boolean };
+  let swaps: { a: string; b: string }[] = [];
+
+  function serve(): void {
+    SERVED.AZERON_SERVED = true;
+    swaps = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string, init?: { body?: string }) => {
+        let body: unknown = { ok: true };
+        if (path === "/api/azeron-app") body = { ok: true, running: false };
+        if (path === "/api/local/swap") {
+          const sent = JSON.parse(init?.body ?? "{}") as { a: string; b: string };
+          swaps.push(sent);
+          body = { ok: true, file: "local.yaml", ids: { [sent.a]: "29993", [sent.b]: "49229" } };
+        }
+        return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve(body) });
+      }),
+    );
+    mount();
+  }
+
+  afterEach(() => {
+    SERVED.AZERON_SERVED = false;
+    vi.unstubAllGlobals();
+  });
+
+  it("is swapped with one click, and the write bar then shows each hand on the other unit", async () => {
+    serve();
+    plugIn([makeUnit("left"), makeUnit("right")]);
+    await writeToUnits();
+    await vi.waitFor(() => {
+      expect(bar()).toContain("Left unit (49229) →");
+      expect(bar()).toContain("Right unit (29993) →");
+    }, WAIT);
+    const swap = barButton("Swap left and right");
+    expect(swap.getAttribute("data-swap-hands")).toBe("cyborg2-left:cyborg2-right");
+    swap.click();
+    await vi.waitFor(() => {
+      expect(bar()).toContain("Left unit (29993) →");
+      expect(bar()).toContain("Right unit (49229) →");
+    }, WAIT);
+    expect(swaps).toEqual([{ a: "cyborg2-left", b: "cyborg2-right" }]);
+  });
+
+  it("is not offered by a page that cannot save, since it would change nothing", async () => {
+    plugIn([makeUnit("left"), makeUnit("right")]);
+    await writeToUnits();
+    await vi.waitFor(() => {
+      expect(bar()).toContain("Right unit (29993) →");
+    }, WAIT);
+    expect(
+      [...document.querySelectorAll(".write-bar button")].map((button) => button.textContent),
+    ).not.toContain("Swap left and right");
   });
 });
 

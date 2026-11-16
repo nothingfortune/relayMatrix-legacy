@@ -29,14 +29,6 @@ lint:
   # Findings that are real but accepted on a specific profile. Each one is a decision,
   # not a mute: say why, and revisit it when that profile is revised.
   acknowledged:
-    - {profile: akimbo-v10, rule: akimbo-role-mismatch, position: index_2,
-       reason: "v10 specialises the hands rather than mirroring them: the right unit flies and the left fights, so the two thumb pads do different jobs by design. A deliberate departure from the 2026-09-28 lesson, and what a playtest has to judge."}
-    - {profile: akimbo-v10, rule: akimbo-role-mismatch, position: index_4,
-       reason: "v10 specialises the hands rather than mirroring them: the right unit flies and the left fights, so the two thumb pads do different jobs by design. A deliberate departure from the 2026-09-28 lesson, and what a playtest has to judge."}
-    - {profile: akimbo-v10, rule: akimbo-role-mismatch, position: pinky_side,
-       reason: "v10 specialises the hands rather than mirroring them: the right unit flies and the left fights, so the two thumb pads do different jobs by design. A deliberate departure from the 2026-09-28 lesson, and what a playtest has to judge."}
-    - {profile: akimbo-v10, rule: akimbo-role-mismatch, position: middle_4,
-       reason: "EXPERIMENT: as middle_1 -- pulsed thrust, pending a playtest."}
     - {profile: single-v5, rule: duplicate-output-key, key: Tab,
        reason: "Tab reaches the menu from two places (perks double-tap, ULT long-press).
                 Both are menu actions, so there is no combat ambiguity."}

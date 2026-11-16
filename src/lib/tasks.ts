@@ -57,7 +57,7 @@ import type { StickModeSet } from "./stickmodes.js";
 import type { NameStatus } from "../types/pedals.js";
 import { ERROR, WARNING, formatFinding, lintGame, lintGenre } from "./lint.js";
 import type { Finding, LintResult } from "./lint.js";
-import { setLocalDeviceId, setLocalGamePath } from "./machine.js";
+import { loadLocal, setLocalDeviceId, setLocalDeviceIds, setLocalGamePath } from "./machine.js";
 import type { MachinePathField } from "./machine.js";
 import { Game, Genre } from "./model.js";
 import type { Profile } from "./model-core.js";
@@ -330,6 +330,31 @@ export function nameUnit(device: string, id: string): string {
     throw new ScaffoldError(`no keypad device map called '${device}' in devices/`);
   }
   return setLocalDeviceId(device, id);
+}
+
+/**
+ * Exchange the ids of two hands: the unit that was the left becomes the right and the other
+ * way round, in local.yaml, both at once. For the day a unit was named for the wrong hand.
+ * Nothing is sent to a unit; the next write goes where the ids now say.
+ */
+export function swapUnits(a: string, b: string): { file: string; ids: Record<string, string> } {
+  const names = deviceNames();
+  for (const name of [a, b]) {
+    if (!names.includes(name)) throw new ScaffoldError(`no keypad device map called '${name}'`);
+  }
+  if (a === b) throw new ScaffoldError("a swap needs two different hands");
+  const local = loadLocal();
+  const idOf = (name: string): string => {
+    const id = loadDevice(name, local).softwareDeviceId;
+    if (id === undefined || id === "") {
+      throw new ScaffoldError(`'${name}' has no unit id yet, so there is nothing to swap`);
+    }
+    return id;
+  };
+  const idA = idOf(a);
+  const idB = idOf(b);
+  const ids = { [a]: idB, [b]: idA };
+  return { file: setLocalDeviceIds(ids), ids };
 }
 
 /**
@@ -812,30 +837,6 @@ export function startGame(request: StartGameRequest): StartGameResult {
     });
     if (!existsSync(repoPath(posixJoin(gameDir, "playtests.md")))) {
       writeText(posixJoin(gameDir, "playtests.md"), `# ${name} playtests\n`);
-    }
-    // A style that has the two hands do different jobs on purpose -- a pad's d-pad against
-    // its A B X Y -- says so, and each position the checks would raise is acknowledged with
-    // that reason. Only those the checks raise, so none is stale from the start.
-    const meant = built?.acknowledge;
-    if (meant) {
-      const raised = lintGame(new Game(gameDir)).live.filter(
-        (finding) =>
-          finding.rule === "akimbo-role-mismatch" &&
-          finding.position !== undefined &&
-          meant.positions.includes(finding.position),
-      );
-      if (raised.length > 0) {
-        config.lint = {
-          ...config.lint,
-          acknowledged: raised.map((finding) => ({
-            rule: finding.rule,
-            profile: set,
-            ...(finding.position === undefined ? {} : { position: finding.position }),
-            reason: meant.reason,
-          })),
-        };
-        writeConfig();
-      }
     }
     const wired = Object.values(keys).filter((spec) => spec.key !== undefined).length;
     return {

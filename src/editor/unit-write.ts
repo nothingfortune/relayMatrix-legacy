@@ -266,8 +266,8 @@ export function settingsNote(plan: UnitPlan): string | null {
   }
   if (wants.length === 0) return null;
   let note =
-    `Not written yet: the layout wants ${wants.join(" and ")}. The slot keeps its own, ` +
-    "which the page cannot read yet; set them in the Azeron app if they differ.";
+    `Not written: the layout wants ${wants.join(" and ")}. The slot keeps its own; ` +
+    "set them in the Azeron app.";
   const held = plan.replaces?.settings?.sensitivityValues;
   if (held !== undefined && steps !== undefined && held.join() !== steps.sensitivityValues.join()) {
     note +=
@@ -302,7 +302,7 @@ export function explain(error: unknown, doing: string): string {
     return "No unit was picked in the browser's dialog.";
   }
   if (name === "SecurityError") {
-    return "The browser would not let the page reach the unit. Open the editor from `azeron serve` in Chrome or Edge.";
+    return "The browser blocked access to the unit. Open the editor from `azeron serve` in Chrome or Edge.";
   }
   if (
     name === "NotAllowedError" ||

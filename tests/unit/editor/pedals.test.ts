@@ -179,7 +179,7 @@ describe("the sticks and the pedals", () => {
       "Mode 2 (RC default), with pedals",
     );
     expect(document.querySelector(".pedals-note")?.textContent).toContain(
-      "Nothing on the sticks was changed",
+      "Unchanged: open Stick mode to switch",
     );
     expect(stickDirections(0)).toEqual(before);
     // And back: the reading follows the assignment, both ways.
@@ -188,7 +188,7 @@ describe("the sticks and the pedals", () => {
   });
 
   it("applies the with-pedals variant of a mode when the pedals carry yaw, and says so", () => {
-    expect(document.querySelector(".mode-pedals")?.textContent).toContain("given another job");
+    expect(document.querySelector(".mode-pedals")?.textContent).toContain("the sticks give it up");
     const mode1 = [...document.querySelectorAll<HTMLButtonElement>(".mode-row")].find((row) =>
       row.textContent.startsWith("Mode 1"),
     );
@@ -213,7 +213,7 @@ describe("the sticks and the pedals", () => {
 
   it("applies a mode as written to a layout with no pedals", () => {
     document.querySelector<HTMLButtonElement>(".remove-pedals")?.click();
-    expect(document.querySelector(".mode-pedals")?.textContent).toContain("no pedals");
+    expect(document.querySelector(".mode-pedals")?.textContent).toContain("No pedals");
     expect(document.querySelector(".mode-pedals")?.getAttribute("data-with-pedals")).toBe("false");
     // The sticks were not touched by taking the pedals away; only how they read changed.
     expect(reading()).toBe("Mode 2, roll for yaw");
@@ -365,7 +365,7 @@ describe("saving the pedals with everything else", () => {
     expect(report).toContain("inferred, not flown");
     // It was saved, so the page no longer calls it unsaved, and the game is offered the change.
     expect(saveButton()?.textContent).toBe("Saved");
-    expect(report).toContain("The game does not know about the new pedals yet.");
+    expect(report).toContain("The game does not have the new pedals yet.");
   });
 
   it("saves a keypad edit and a pedals edit as one scheme", async () => {

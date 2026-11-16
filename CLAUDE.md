@@ -146,9 +146,7 @@ Three inputs meet in the compiler, and are kept separate:
    its with-pedals variant when the layout gets pedals (`pedals:`, offered only where the
    genre's stick modes have `pedals.takes`; the centred axis drives it, into `sets.yaml`),
    may override actions in the new `actions.yaml` (`provided_by: null` + `mouse: left` for
-   a shooter's trigger), and lists `acknowledge` positions: the pad's split thumbs, written
-   into `lint.acknowledged` only where the checks actually raise them. One unit on its own
-   gets `default.yaml` on its hand, as before. Every action placed is wired with the
+   a shooter's trigger). One unit on its own gets `default.yaml` on its hand, as before. Every action placed is wired with the
    editor's own `wireAction`, required actions first. What the pool cannot carry is taken off its control and
    reported (`leftOff`), never placed sending nothing. `startLayout` (`azeron layout`, Add
    a layout) makes a layout as a copy of another (its `sets.yaml` entry too, modes and pedals, through
@@ -407,9 +405,10 @@ These came from real play sessions; each one is a lint rule now.
    double-tap on a consumable; mashing a heal opened the menu. → `menu-with-combat`
 6. **`isHold: true` latches** the key until pressed again. Boost must not latch. →
    `hold-on-movement`
-7. The 2026-09-28 akimbo attempt failed because the right hand had too few bindings and
-   the two hands used the same finger positions for unrelated jobs. → `missing-required`
-   and `akimbo-role-mismatch`
+7. The 2026-09-28 akimbo attempt failed because the right hand had too few bindings. →
+   `missing-required`. (It also mirrored positions with unrelated jobs; a check for that,
+   `akimbo-role-mismatch`, was removed 2026-11-16: it fired on every layout that
+   specialises the hands on purpose, which is all of them.)
 8. **The Azeron software is built for a left-handed unit; the right unit is not a 1:1
    mirror of it.** Measured 2026-09-28: the thumb cluster — pad and stick — is rotated
    180° on the right unit, while the finger columns and side keys match. Never infer one

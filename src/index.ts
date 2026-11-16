@@ -76,6 +76,7 @@ import {
   renameLayout,
   deviceNames,
   nameUnit,
+  swapUnits,
   ImportCollision,
   importExport,
   applyIngame,
@@ -753,6 +754,28 @@ function cmdServe(port: number, host: string, open = false): number {
           }
           const file = nameUnit(parsed.device, parsed.id);
           send(200, JSON.stringify({ ok: true, file }));
+        } catch (error) {
+          send(400, JSON.stringify({ ok: false, error: messageOf(error) }));
+        }
+      });
+      return;
+    }
+    if (request.method === "POST" && url === "/api/local/swap") {
+      // Two hands named for the wrong units: exchange their ids in local.yaml.
+      readBody(request, response, 1_000, (body) => {
+        try {
+          const parsed = JSON.parse(body) as { a?: unknown; b?: unknown };
+          if (typeof parsed.a !== "string" || typeof parsed.b !== "string") {
+            throw new Error("send {a, b}, the two device maps, both strings");
+          }
+          const swapped = swapUnits(parsed.a, parsed.b);
+          appendLog(
+            "units.log",
+            `${new Date().toISOString()} swapped hands: ${Object.entries(swapped.ids)
+              .map(([device, id]) => `${device} is now unit ${id}`)
+              .join(", ")}\n`,
+          );
+          send(200, JSON.stringify({ ok: true, ...swapped }));
         } catch (error) {
           send(400, JSON.stringify({ ok: false, error: messageOf(error) }));
         }

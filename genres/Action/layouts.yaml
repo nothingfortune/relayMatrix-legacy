@@ -8,9 +8,6 @@ controller:
   actions:
     attack: {provided_by: null, mouse: left}
     aim: {provided_by: null, mouse: right}
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     index_1: {label: Ability 1, tap: ability_1}
     index_4: {label: Ability 2, tap: ability_2}

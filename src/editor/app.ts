@@ -380,8 +380,7 @@ function stickModeField(spec: PositionSpec, base?: AnalogSettings): HTMLElement 
   if (keyboardOnly) {
     field.append(
       el("div", { class: "note" }, [
-        "This game's checks keep its sticks on keys: in Everspace 2 an Xbox stick made the " +
-          "game stutter, and the pointer spins the ship.",
+        "Keys only: an Xbox stick stutters here, the pointer spins the ship.",
       ]),
     );
   }
@@ -647,8 +646,8 @@ function wire(actionId: string): void {
   );
   if (key === null) {
     saveNote =
-      `There is no key left to send "${spec?.label ?? actionId}" on, so that control does ` +
-      "nothing. Free one on the In-game tab.";
+      `No free key for "${spec?.label ?? actionId}": that control sends nothing. ` +
+      "Free one on the In-game tab.";
   }
 }
 
@@ -759,12 +758,7 @@ function dropActionOnDirection(
 function clearAllKeys(): void {
   const units = slugsInSet().length === 1 ? "this unit" : "both units";
   if (
-    !window.confirm(
-      `Clear every key on ${units} in ${state.setName}? Every action goes back to the list. ` +
-        (autosaveOn() && canSave()
-          ? "Autosave keeps the change; Undo (Ctrl+Z) brings the layout back."
-          : "Nothing is saved until you press Save, and Undo (Ctrl+Z) brings the layout back."),
-    )
+    !window.confirm(`Clear every key on ${units} in ${state.setName}? Undo (Ctrl+Z) restores it.`)
   ) {
     return;
   }
@@ -778,7 +772,7 @@ function clearAllKeys(): void {
   }
   state.selected = null;
   state.slot = "tap";
-  saveNote = "Every key cleared. Drag actions from the list to lay it out again.";
+  saveNote = "Keys cleared.";
   render();
 }
 
@@ -1117,7 +1111,7 @@ function findingItem(finding: Finding, acceptable = false): HTMLElement {
     finding.profile !== undefined
   ) {
     const accept = el("button", { class: "btn small accept-finding", type: "button" }, ["Accept"]);
-    accept.title = "This is fine in this layout: say why, and the check stops raising it.";
+    accept.title = "Accept this finding, with a reason.";
     // The game the finding is about, as it is drawn: not whichever is open when clicked.
     const slug = currentGame().slug;
     accept.addEventListener("click", () => {
@@ -1134,9 +1128,7 @@ function findingItem(finding: Finding, acceptable = false): HTMLElement {
 
 /** Record a finding as accepted, with the reason, and stop showing it as a problem. */
 async function acceptFinding(finding: Finding, slug: string): Promise<void> {
-  const reason = window.prompt(
-    `Why is this fine here? The reason is kept with it.\n\n${finding.message}`,
-  );
+  const reason = window.prompt(`Reason for accepting:\n\n${finding.message}`);
   if (reason === null || reason.trim() === "") return;
   const game = state.payload.games.find((entry) => entry.slug === slug);
   if (game === undefined) return;
@@ -1167,7 +1159,7 @@ async function acceptFinding(finding: Finding, slug: string): Promise<void> {
     ...game.lintConfig,
     acknowledged: [...(game.lintConfig.acknowledged ?? []), result.entry],
   };
-  saveNote = "Accepted. The checks list it as acknowledged now.";
+  saveNote = "Accepted.";
   render();
 }
 
@@ -1192,10 +1184,8 @@ function missingGroup(missing: readonly Finding[]): HTMLElement {
   );
   details.append(
     el("div", { class: "muted" }, [
-      `Neither unit sends ${count === 1 ? "it" : "them"}${set === undefined ? "" : ` in '${set}'`}, ` +
-        "so they cannot be reached without another input device. Put each on a key in the " +
-        "Edit tab, or, if this game does not need one, switch its required role off in " +
-        "the In-game tab.",
+      `Not on any key${set === undefined ? "" : ` in '${set}'`}. Place ` +
+        `${count === 1 ? "it" : "each"}, or switch its required role off in the In-game tab.`,
     ]),
   );
   const list = el("ul", { class: "missing-list" });
@@ -1283,16 +1273,14 @@ function renderStickModes(): HTMLElement | null {
 
   const set = stickModesFor();
   if (set === null) {
-    return unavailable(`No stick modes are defined for this game's genre yet.`);
+    return unavailable("No stick modes for this genre.");
   }
 
   const slugs = slugsInSet();
   const left = slugs.find((slug) => workingData(slug).profile.unit === "left");
   const right = slugs.find((slug) => workingData(slug).profile.unit === "right");
   if (left === undefined || right === undefined) {
-    return unavailable(
-      "A stick mode sets both sticks at once, so it needs a left and a right unit.",
-    );
+    return unavailable("Stick modes need a left and a right unit.");
   }
 
   const pedals = pedalsOfLayout();
@@ -1321,21 +1309,15 @@ function renderStickModes(): HTMLElement | null {
       el("span", { class: "muted", "data-reading": "" }, [reading.text]),
     ]),
   );
-  panel.append(
-    el("div", { class: "note" }, [
-      "Sets both sticks at once. Only the eight stick directions change.",
-    ]),
-  );
+  panel.append(el("div", { class: "note" }, ["Both sticks. The eight directions only."]));
   // Pedals are a modifier on the mode, so the panel says which variant a click applies.
   panel.append(
     el("div", { class: "note mode-pedals", "data-with-pedals": String(carry) }, [
       carry
-        ? `This layout's pedals handle ${words(takes)}, so the stick that would have done ` +
-          "it is given another job."
+        ? `Pedals drive ${words(takes)}; the sticks give it up.`
         : pedals === undefined
-          ? "This layout has no pedals, so a mode is applied as written."
-          : `This layout has pedals, but none drives ${words(missing)}, so a mode is applied as ` +
-            "written and the sticks keep it.",
+          ? "No pedals: applied as written."
+          : `No pedal drives ${words(missing)}: applied as written.`,
     ]),
   );
 
@@ -1365,7 +1347,7 @@ function renderStickModes(): HTMLElement | null {
       }
       saveNote =
         `${mode.label}${carry && mode.with_pedals !== undefined ? ", with pedals," : ""} ` +
-        `applied to both sticks.${autosaveOn() && canSave() ? "" : " Save to keep it."}`;
+        `applied.${autosaveOn() && canSave() ? "" : " Save to keep it."}`;
       render();
     });
     panel.append(row);
@@ -1390,7 +1372,7 @@ function renderPalette(): HTMLElement {
   const clearAll = el("button", { class: "btn small", type: "button", "data-clear-all": "" }, [
     "Clear all keys",
   ]);
-  clearAll.title = "Empty every key on the board, to lay the layout out again from this list.";
+  clearAll.title = "Empty every key on the board.";
   clearAll.addEventListener("click", clearAllKeys);
   // The title, the count and the filter share a row: they were three lines above the list.
   const filter = el("input", { type: "search", placeholder: "Filter actions", class: "filter" });
@@ -1413,7 +1395,7 @@ function renderPalette(): HTMLElement {
   if (selection === null) {
     panel.append(
       el("div", { class: "note palette-note" }, [
-        "Drag an action onto a key. Or pick a key on the board, then click an action here.",
+        "Drag an action onto a key, or pick a key, then an action.",
       ]),
     );
   } else if (!onStick) {
@@ -1428,8 +1410,7 @@ function renderPalette(): HTMLElement {
   if (onStick) {
     panel.append(
       el("div", { class: "note palette-note" }, [
-        "A stick is selected. Drag an action onto one of its four directions, or choose " +
-          "them in the Key panel.",
+        "Drag an action onto a direction, or use the Key panel.",
       ]),
     );
   }
@@ -1529,7 +1510,7 @@ function isDirty(): boolean {
 /** Ask before throwing edits away. Returns false when the user would rather not. */
 function confirmDiscard(what: string): boolean {
   if (!isDirty()) return true;
-  return window.confirm(`${what} discards edits that have not been saved. Continue?`);
+  return window.confirm(`${what} discards unsaved edits. Continue?`);
 }
 
 /**
@@ -1602,9 +1583,7 @@ function openActionPicker(slug: string, position: string): void {
       name: "Keyboard key",
       render: (close) =>
         el("div", {}, [
-          el("div", { class: "muted" }, [
-            "The key this control sends, exactly: for a game that wants the arrow keys, say.",
-          ]),
+          el("div", { class: "muted" }, ["The exact key this control sends."]),
           keyChooser(
             (code) => {
               close();
@@ -1728,9 +1707,7 @@ function renderUnitSettings(): HTMLElement | null {
   }
   if (on > 1) {
     box.append(
-      el("div", { class: "finding warning" }, [
-        "Both sensors are on. They drive the same pointer, so moving either hand aims.",
-      ]),
+      el("div", { class: "finding warning" }, ["Both sensors are on: they drive one pointer."]),
     );
   }
   return box;
@@ -1746,11 +1723,9 @@ function renderInspector(): HTMLElement {
       el("div", { class: "empty-state" }, [
         "Pick a key to edit it.",
         el("ul", { class: "tips" }, [
-          el("li", {}, ["Drag an action from the list onto a key, or a key onto another to swap."]),
-          el("li", {}, ["A key can do three things: a tap, a long press and a double tap."]),
-          el("li", {}, [
-            autosaveOn() ? "Ctrl+Z undoes; the page saves on its own." : "Ctrl+Z undoes.",
-          ]),
+          el("li", {}, ["Drag an action onto a key; drag a key onto another to swap."]),
+          el("li", {}, ["Each key: tap, long press, double tap."]),
+          el("li", {}, ["Ctrl+Z undoes."]),
         ]),
       ]),
     );
@@ -1781,7 +1756,7 @@ function renderInspector(): HTMLElement {
     const choose = el("button", { class: "btn small", type: "button", "data-choose-action": "" }, [
       "Choose action…",
     ]);
-    choose.title = "Pick what this key does from the game's actions, or any keyboard key";
+    choose.title = "Pick an action, or any keyboard key";
     choose.addEventListener("click", () => {
       openActionPicker(selection.slug, selection.position);
     });
@@ -1814,10 +1789,10 @@ function renderInspector(): HTMLElement {
     panel.append(
       el("div", { class: "note" }, [
         spec.mode === "mouse"
-          ? "The stick moves the pointer; it sends no keys, so it has no directions to set."
+          ? "Pointer mode: no directions to set."
           : spec.mode === "xbox"
-            ? "The stick is an Xbox stick; it sends no keys, so it has no directions to set."
-            : "This stick is in a mode the units cannot be given. Choose another above.",
+            ? "Xbox stick: no directions to set."
+            : "A mode the units cannot take. Choose another above.",
       ]),
     );
   } else if (isStick) {
@@ -2016,7 +1991,7 @@ function renderLintChip(): HTMLElement {
     text = problems.length === 0 ? "✓ Clean" : `${String(entries.length)} to look at`;
     const missing = entries.find((entry) => "missing" in entry);
     if (missing && "missing" in missing) {
-      detail = `${String(missing.missing.length)} required action(s) are not on any key yet`;
+      detail = `${String(missing.missing.length)} required action(s) not on any key`;
     }
     tone = errors > 0 ? "bad" : problems.length > 0 ? "warn" : "ok";
   }
@@ -2218,8 +2193,7 @@ function editPedals(change: (pedals: SetPedals | undefined) => SetPedals | undef
   const after = sticksReadingNow();
   pedalsNote =
     before !== null && after !== null && before !== after
-      ? `The sticks now read as ${after}; before this edit they read as ${before}. ` +
-        "Nothing on the sticks was changed. Open Stick mode to switch them."
+      ? `Sticks now read ${after} (were ${before}). Unchanged: open Stick mode to switch.`
       : null;
   render();
 }
@@ -2254,7 +2228,7 @@ function axisOfAction(
 }
 
 const TUNING_FIELDS = [
-  ["dead_zone", "Dead zone", "DeadZone: how far the axis must move before the game notices."],
+  ["dead_zone", "Dead zone", "DeadZone: travel ignored before the game reacts."],
   ["scale", "Scale", "Scale: multiplies the axis."],
   ["sensitivity", "Sensitivity", "Sensitivity: the game's own response setting."],
   ["exponent", "Exponent", "Exponent: bends the response curve."],
@@ -2359,13 +2333,7 @@ function renderPedalAxis(
         return { ...current, invert: invert.checked };
       });
     });
-    line.append(
-      el(
-        "label",
-        { class: "inv", title: "Reverse the direction. The game's row is set to match the box." },
-        [invert, "Invert"],
-      ),
-    );
+    line.append(el("label", { class: "inv", title: "Reverse the direction." }, [invert, "Invert"]));
   }
   cell.append(line);
   // An action dragged from the list onto a pedal: the pedal drives the axis that action is
@@ -2396,9 +2364,7 @@ function renderPedalAxis(
 
   if (assignment !== undefined && restsOnCentred(spec, modes, assignment.drives)) {
     cell.append(
-      el("div", { class: "pedal-warn" }, [
-        "Rests at one end, so with the foot off the game reads a full deflection.",
-      ]),
+      el("div", { class: "pedal-warn" }, ["Rests at one end: full deflection with the foot off."]),
     );
   }
 
@@ -2424,8 +2390,8 @@ function renderPedalAxis(
     el("div", { class: "muted" }, [restSentence(spec)]),
     el("div", { class: "muted" }, [
       entry === undefined
-        ? "The game has no name recorded for this axis."
-        : `The game calls it ${entry.name}${entry.note === undefined ? "" : ` (${entry.note})`}.`,
+        ? "No game name recorded."
+        : `Game name: ${entry.name}${entry.note === undefined ? "" : ` (${entry.note})`}.`,
     ]),
   );
   if (assignment !== undefined) {
@@ -2471,7 +2437,7 @@ function renderPedalAxis(
         "label",
         {
           class: "inv",
-          title: "Two pedal axes may drive one game axis only when each says so.",
+          title: "Two pedal axes on one game axis: both must be shared.",
         },
         [shared, "Shared with another pedal axis"],
       ),
@@ -2496,11 +2462,7 @@ function renderPedals(): HTMLElement {
   panel.append(head);
 
   if (modes === null) {
-    panel.append(
-      el("div", { class: "note" }, [
-        "This game's genre defines no game axes, so there is nothing for a pedal to drive.",
-      ]),
-    );
+    panel.append(el("div", { class: "note" }, ["No game axes in this genre."]));
     return panel;
   }
 
@@ -2512,8 +2474,7 @@ function renderPedals(): HTMLElement {
     }
     panel.append(
       el("div", { class: "note" }, [
-        "This layout has no pedals. Adding them puts the rudder on yaw; the toes are left " +
-          "unassigned.",
+        "No pedals. Adding them puts the rudder on yaw; toes unassigned.",
       ]),
     );
     const chosen = el("select", { "aria-label": "Pedals device" });
@@ -2541,9 +2502,7 @@ function renderPedals(): HTMLElement {
   head.append(el("span", { class: "muted" }, [device?.name ?? pedals.device]), remove);
   if (device === undefined) {
     panel.append(
-      el("div", { class: "finding error" }, [
-        `This layout names '${pedals.device}', which is not a pedals device.`,
-      ]),
+      el("div", { class: "finding error" }, [`'${pedals.device}' is not a pedals device.`]),
     );
     return panel;
   }
@@ -2583,13 +2542,7 @@ function renderChecks(): HTMLElement {
   appendFindings(box, [...live, ...stale], true);
   panel.append(box);
   panel.append(
-    el("div", { class: "field muted" }, [
-      el("small", {}, [
-        canSave()
-          ? "Checked again on every change and every save."
-          : "Checked again on every change.",
-      ]),
-    ]),
+    el("div", { class: "field muted" }, [el("small", {}, ["Rechecked on every change."])]),
   );
   return panel;
 }
@@ -2658,9 +2611,9 @@ function renderPedalsVerdict(
 ): HTMLElement {
   const box = el("div", { class: "pedals-verdict" });
   if (pedals.axes.length === 0) {
-    box.append(el("div", {}, [`${pedals.set} has no pedals, so the game's file gets none.`]));
+    box.append(el("div", {}, [`${pedals.set}: no pedals.`]));
   } else {
-    box.append(el("div", {}, [`Pedals in ${pedals.set}, as the game's file would get them:`]));
+    box.append(el("div", {}, [`Pedals in ${pedals.set}:`]));
     for (const axis of pedals.axes) {
       const trust = statusWords(axis.status).short.toLowerCase();
       box.append(
@@ -2683,9 +2636,7 @@ function renderPedalsVerdict(
   }
   if (pedals.problem !== undefined) {
     box.append(
-      el("div", { class: "finding error" }, [
-        `The game's file cannot be written from this layout: ${pedals.problem}`,
-      ]),
+      el("div", { class: "finding error" }, [`Cannot write the game's file: ${pedals.problem}`]),
     );
   }
   return box;
@@ -2713,9 +2664,7 @@ function reportSave(path: string, result: SaveResponse, also: readonly string[] 
   if (check.pedals !== undefined) box.append(renderPedalsVerdict(check.pedals));
   box.append(
     el("div", changed.length > 0 ? {} : { class: "muted" }, [
-      changed.length > 0
-        ? "The units do not have this yet: press Write to units to put it on them."
-        : "Nothing new for the units.",
+      changed.length > 0 ? "Not on the units yet: Write to units." : "Nothing new for the units.",
     ]),
   );
   // Where it went, for anyone who wants it, out of the way of everyone who does not.
@@ -2827,15 +2776,13 @@ function describeGameUpdate(result: GameUpdate): string {
   const changed = [...keys, ...pedals];
   return (
     (changed.length === 0
-      ? "The game already had these keys -- nothing to write."
+      ? "The game already has these keys."
       : `Updated the game: ${changed.join("; ")}.`) +
-    (waiting.length === 0
-      ? ""
-      : ` Not written, because the game's name for it is not known: ${waiting.join(", ")}.`) +
+    (waiting.length === 0 ? "" : ` Not written (name unknown): ${waiting.join(", ")}.`) +
     ((result.skipped ?? []).length === 0
       ? ""
       : ` Not written yet: ${(result.skipped ?? []).join("; ")}.`) +
-    (result.backup === null ? "" : ` Its previous file is kept at ${result.backup}.`)
+    (result.backup === null ? "" : ` Backup: ${result.backup}.`)
   );
 }
 
@@ -2858,11 +2805,11 @@ function gameUpdateBlocked(): string | null {
   const game = currentGame();
   const gaps = gameFileGaps(game);
   if (gaps.length > 0) {
-    return `${game.name}'s keys cannot be written into the game yet: ${gaps[0] ?? ""}`;
+    return `Cannot write ${game.name}'s keys yet: ${gaps[0] ?? ""}`;
   }
   // The game is updated from what is saved, so an unsaved key would be left out.
   if (inGameKeysPart().isDirty() || pedalsPart().isDirty()) {
-    return "Save first: the game is updated from the saved in-game keys and pedals.";
+    return "Save first: the game is updated from what is saved.";
   }
   return null;
 }
@@ -2876,8 +2823,7 @@ function confirmUpdateGame(report: (outcome: { ok: boolean; text: string }) => v
   const game = currentGame();
   if (
     !window.confirm(
-      `Is ${game.name} closed? It rewrites its key bindings when it exits, which would ` +
-        "undo this. Its current file is kept beside the new one.",
+      `Is ${game.name} closed? It rewrites its bindings on exit. The current file is backed up.`,
     )
   ) {
     return;
@@ -2898,12 +2844,12 @@ function reportUpdateInSaveReport(outcome: { ok: boolean; text: string }): void 
 
 /** The role tags an action can carry, in the order they are shown, and what each one does. */
 const ACTION_TAGS: readonly { tag: string; means: string }[] = [
-  { tag: "combat", means: "Used in a fight: never delayed by a long press or double tap." },
-  { tag: "movement", means: "Moves you: must not latch on." },
-  { tag: "travel", means: "Used for getting around: warping, docking, autopilot." },
-  { tag: "menu", means: "Opens a menu or the pause screen: kept off combat keys." },
-  { tag: "utility", means: "Anything else useful: interact, light, talk." },
-  { tag: "required", means: "The layout must have this on a key; the checks complain if not." },
+  { tag: "combat", means: "Fighting: never delayed by long press or double tap." },
+  { tag: "movement", means: "Movement: must not latch." },
+  { tag: "travel", means: "Getting around: warp, dock, autopilot." },
+  { tag: "menu", means: "Menu or pause: kept off combat keys." },
+  { tag: "utility", means: "Other: interact, light, talk." },
+  { tag: "required", means: "Must be on a key." },
 ];
 
 /** What changed in the in-game vocabulary since the page loaded, as the patch the server takes. */
@@ -3216,8 +3162,8 @@ function unitsReportBox(report: UnitsReport): HTMLElement {
     box.append(
       el("div", {}, [
         direct.length === 0
-          ? "The units have this layout as it is now."
-          : "The units have this layout as it is now: " +
+          ? "The units have this layout."
+          : "The units have this layout: " +
             report.units
               .map((unit) =>
                 unit.status === "written" && unit.written !== undefined
@@ -3230,11 +3176,7 @@ function unitsReportBox(report: UnitsReport): HTMLElement {
     );
     return box;
   }
-  box.append(
-    el("div", {}, [
-      "The units do not have this layout as it is now. Write to units puts it on them:",
-    ]),
-  );
+  box.append(el("div", {}, ["Not on the units. Write to units:"]));
   for (const unit of behind) {
     const count = unit.differences.length;
     box.append(
@@ -3533,7 +3475,7 @@ function renderCheckBar(run: CheckRun): HTMLElement {
 
   if (run.presses.length === 0) {
     bar.append(
-      el("div", {}, [`The ${unit.toLowerCase()} unit has nothing on it to check.`]),
+      el("div", {}, [`The ${unit.toLowerCase()} unit has nothing to check.`]),
       button("Close", stop),
     );
     return bar;
@@ -3547,9 +3489,7 @@ function renderCheckBar(run: CheckRun): HTMLElement {
         `Checking the ${unit.toLowerCase()} unit: press `,
         el("strong", {}, [press.prompt]),
         ` on it. The layout has ${press.does} there.`,
-        ...(press.sends.kind === "mouse"
-          ? [" Point at the board first: on this bar, a click is a click on its buttons."]
-          : []),
+        ...(press.sends.kind === "mouse" ? [" Point at the board first."] : []),
       ]),
       el("div", { class: "check-count" }, [
         `${String(run.at + 1)} of ${String(run.presses.length)} · ` +
@@ -3568,8 +3508,7 @@ function renderCheckBar(run: CheckRun): HTMLElement {
     if (run.unsaved) {
       bar.append(
         el("div", { class: "check-note" }, [
-          "This layout has changes the units do not have yet. Write to units first, then " +
-            "check.",
+          "Changes not on the units yet. Write to units, then check.",
         ]),
       );
     }
@@ -3619,18 +3558,15 @@ function renderCheckBar(run: CheckRun): HTMLElement {
     let advice: string;
     if (result.onProbe) {
       advice =
-        "Those are the press-test profile's keys: the unit is on one of its press-test " +
-        "slots. Press its profile button until it is on this layout, or take the press test " +
-        "off in the Press test tab.";
+        "Press-test keys: the unit is on a press-test slot. Press its profile button, or " +
+        "take the press test off.";
     } else if (app !== undefined && app.status !== "matches" && app.status !== "written") {
-      advice =
-        "The unit has an older copy of this layout. Write to units, in the header, puts this one on it.";
+      advice = "The unit has an older copy. Write to units.";
     } else if (result.differing.length * 2 > result.checked) {
       advice =
-        "Most controls differ, so the unit is probably on another of its onboard profiles. " +
-        "Press its profile button, or Write to units, in the header, to put this layout on it.";
+        "Most controls differ: another onboard profile? Press its profile button, or Write to units.";
     } else {
-      advice = "Write to units, in the header, puts this layout on it; then check again.";
+      advice = "Write to units, then check again.";
     }
     bar.append(el("div", { class: "check-note" }, [advice]));
   }
@@ -3875,8 +3811,7 @@ function renderTesterBar(tester: LiveTester): HTMLElement {
   const seen = tester.seen.size;
   const bar = el("div", { class: "check-bar tester-bar" }, [
     el("div", { class: "check-ask" }, [
-      "Press every control on the units, in any order: each one that sends what the layout " +
-        "says turns green. The page's own keys and clicks are off until you stop.",
+      "Press each control, in any order: a match turns green. Page keys and clicks are off until you stop.",
     ]),
     el(
       "div",
@@ -4000,7 +3935,7 @@ function compiledFor(slug: string): ExportProfile {
   const profile = profileFor(slug);
   const templatePath = profile.template ?? game.template;
   const template = state.payload.templates[templatePath];
-  if (!template) throw new Error(`The export ${templatePath} is not in the page. Reload it.`);
+  if (!template) throw new Error(`Export ${templatePath} is missing from the page. Reload.`);
   const compiled = compileProfile(profile, { template, actions: actionSetFor(game).actions })
     .profiles[0];
   if (!compiled) throw new Error("the compiler produced no profile");
@@ -4040,7 +3975,7 @@ function watchUnplugging(hid: ConfigHid): void {
       run.plans = run.plans.map((plan) =>
         plan.found === gone ? { ...plan, found: null, slot: null } : plan,
       );
-      run.note = `The ${which} was unplugged. Plug it back in and press Try again.`;
+      run.note = `The ${which} was unplugged. Plug it in, then Try again.`;
       run.stage = "failed";
       render();
     }
@@ -4089,8 +4024,8 @@ function namingNote(
   const note = el("div", { class: "check-note naming" }, [
     `Connected, but ${why}: ${strangers
       .map((unit) => `unit ${String(unit.identity.deviceId)}`)
-      .join(", ")}. Which hand is each? Unplug one if unsure: only the other shows.` +
-      (canSave() ? "" : " Open the editor with npm start to name them here."),
+      .join(", ")}. Which hand is each? (Unplug one to tell.)` +
+      (canSave() ? "" : " Use npm start to name them."),
   ]);
   if (canSave()) {
     for (const unit of strangers) {
@@ -4148,6 +4083,67 @@ async function nameUnitHere(device: string, id: string): Promise<string | null> 
   if (data !== undefined) data.software_device_id = id;
   unitLog(`unit ${id} is ${device}, in local.yaml`);
   return null;
+}
+
+/**
+ * Exchange which unit is one hand and which the other, in local.yaml, for a unit named for
+ * the wrong hand. Both ids move together; the page's own copy follows. Null is done.
+ */
+async function swapHandsHere(a: string, b: string): Promise<string | null> {
+  try {
+    const response = await fetch("/api/local/swap", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ a, b }),
+    });
+    const body = (await response.json()) as {
+      ok?: boolean;
+      error?: string;
+      ids?: Record<string, string>;
+    };
+    if (body.ok !== true || body.ids === undefined) {
+      return body.error ?? "local.yaml could not be written";
+    }
+    for (const [device, id] of Object.entries(body.ids)) {
+      const data = state.payload.devices[device];
+      if (data !== undefined) data.software_device_id = id;
+    }
+    unitLog(
+      `hands swapped: ${Object.entries(body.ids)
+        .map(([device, id]) => `${device} is now unit ${id}`)
+        .join(", ")}`,
+    );
+    return null;
+  } catch (error) {
+    return messageOf(error);
+  }
+}
+
+/** The "Swap left and right" button for two hands; `again` runs once the ids have moved. */
+function swapHandsButton(
+  a: string,
+  b: string,
+  again: () => void,
+  onError: (message: string) => void,
+): HTMLButtonElement {
+  const label = (device: string): string =>
+    unitLabel(state.payload.devices[device]?.hand ?? device).toLowerCase();
+  const swap = el("button", { class: "btn small", type: "button" }, [
+    `Swap ${label(a)} and ${label(b)}`,
+  ]);
+  swap.setAttribute("data-swap-hands", `${a}:${b}`);
+  swap.title = "Exchange which unit is which hand. Nothing is written to a unit.";
+  swap.addEventListener("click", () => {
+    swap.setAttribute("disabled", "disabled");
+    void swapHandsHere(a, b).then((error) => {
+      if (error === null) again();
+      else {
+        onError(error);
+        swap.removeAttribute("disabled");
+      }
+    });
+  });
+  return swap;
 }
 
 function deviceNameFor(deviceId: number): string | null {
@@ -4216,18 +4212,13 @@ async function prepareWrite(run: WriteRun): Promise<void> {
   try {
     const hid = unitsApi();
     if (!hid) {
-      throw new Error(
-        "This browser has no WebHID, which writing to the units needs. Use Chrome or Edge.",
-      );
+      throw new Error("No WebHID in this browser. Use Chrome or Edge.");
     }
     if (canSave() && isDirty()) {
       step("Saving the layout first…");
       await saveScheme(true);
       if (!alive()) return;
-      if (isDirty())
-        throw new Error(
-          "The layout could not be saved, so nothing was written. The header says why.",
-        );
+      if (isDirty()) throw new Error("Layout not saved, so nothing was written. See the header.");
     }
     if (!alive()) return;
     step("Checking the Azeron app is closed…");
@@ -4283,7 +4274,7 @@ function closeAzeronApp(run: WriteRun): void {
     .then((body: unknown) => {
       if ((body as { running?: unknown }).running === true) {
         run.stage = "failed";
-        run.note = "The Azeron app would not close. Quit it from its tray icon, then try again.";
+        run.note = "The Azeron app would not close. Quit it from its tray.";
         render();
         return;
       }
@@ -4341,7 +4332,7 @@ function plansCurrent(run: WriteRun): boolean {
 
 function writeAll(run: WriteRun): void {
   if (!plansCurrent(run)) {
-    run.note = "The layout changed since this was worked out, so the units were looked at again.";
+    run.note = "The layout changed: units checked again.";
     run.setName = state.setName;
     unitLog("the layout changed while the write waited; planning again");
     void prepareWrite(run);
@@ -4550,7 +4541,7 @@ function deleteSlotNow(run: WriteRun, index: number, slot: StoredProfile): void 
   const unit = `${unitLabel(plan.target.unit).toLowerCase()} unit`;
   if (
     !window.confirm(
-      `Delete slot ${String(slot.slot)}, "${slot.name}", from the ${unit}? It cannot be undone here.`,
+      `Delete slot ${String(slot.slot)}, "${slot.name}", from the ${unit}? This cannot be undone.`,
     )
   ) {
     return;
@@ -4607,11 +4598,7 @@ function renderWriteBar(run: WriteRun): HTMLElement {
   if (run.stage === "preparing" || run.stage === "writing") {
     bar.append(el("div", { class: "check-note write-progress" }, [run.status]));
     if (run.stage === "writing") {
-      bar.append(
-        el("div", { class: "check-note" }, [
-          "Leave the units plugged in until this says it is done.",
-        ]),
-      );
+      bar.append(el("div", { class: "check-note" }, ["Keep the units plugged in until done."]));
     } else {
       bar.append(el("div", { class: "check-buttons" }, [close]));
     }
@@ -4621,7 +4608,7 @@ function renderWriteBar(run: WriteRun): HTMLElement {
   if (run.stage === "app-running") {
     bar.append(
       el("div", { class: "check-verdict bad" }, [
-        "The Azeron app is running. It talks to the units on the same channel, so it has to be closed first.",
+        "The Azeron app is running. Close it first: it uses the same channel.",
       ]),
       el("div", { class: "check-buttons" }, [
         button(
@@ -4641,9 +4628,9 @@ function renderWriteBar(run: WriteRun): HTMLElement {
     bar.append(
       el("div", { class: "check-verdict bad" }, [
         canSave()
-          ? "The page could not tell whether the Azeron app is running."
-          : "Opened as a file, the page cannot tell whether the Azeron app is running.",
-        " It talks to the units on the same channel: close it if it is open, then carry on.",
+          ? "Cannot tell whether the Azeron app is running."
+          : "Opened as a file: cannot tell whether the Azeron app is running.",
+        " Close it if it is open, then carry on.",
       ]),
       el("div", { class: "check-buttons" }, [
         button(
@@ -4691,14 +4678,14 @@ function renderWriteBar(run: WriteRun): HTMLElement {
               (report.unchecked.length > 0
                 ? `, except ${String(report.unchecked.length)} scroll ` +
                   (report.unchecked.length === 1 ? "key" : "keys") +
-                  ", which were sent but cannot be read back."
+                  ", sent but not readable back."
                 : "."),
           ]),
         );
       } else if (report !== null) {
         bar.append(
           el("div", { class: "check-verdict bad" }, [
-            `${unit}: slot ${String(report.slot)} was written, but reading it back found ` +
+            `${unit}: slot ${String(report.slot)} written; read-back found ` +
               `${String(report.problems.length)} difference(s):`,
           ]),
         );
@@ -4715,8 +4702,7 @@ function renderWriteBar(run: WriteRun): HTMLElement {
       } else if (report !== null) {
         bar.append(
           el("div", { class: "check-note" }, [
-            `The ${unit.toLowerCase()} is not running slot ${String(report.slot)}: press its ` +
-              "profile button to get to it.",
+            `The ${unit.toLowerCase()} is not on slot ${String(report.slot)}: press its profile button.`,
           ]),
         );
       }
@@ -4726,12 +4712,9 @@ function renderWriteBar(run: WriteRun): HTMLElement {
       const before = plan.replaces;
       if (before === null) continue;
       buttons.append(
-        button(
-          `Download what the ${plan.target.unit} unit's slot ${String(before.slot)} held`,
-          () => {
-            downloadSlot(before);
-          },
-        ),
+        button(`Download the ${plan.target.unit} unit's old slot ${String(before.slot)}`, () => {
+          downloadSlot(before);
+        }),
       );
     }
     buttons.append(close);
@@ -4750,7 +4733,7 @@ function renderWriteBar(run: WriteRun): HTMLElement {
       row.append(
         el("strong", {}, [unit]),
         ` (${plan.target.softwareDeviceId ?? "no id in its device map"}): not found. ` +
-          "The page has not been given it yet, or it is not plugged in.",
+          "Not connected to this page, or not plugged in.",
       );
       list.append(row);
       return;
@@ -4801,7 +4784,7 @@ function renderWriteBar(run: WriteRun): HTMLElement {
     if (plan.changes.some((change) => /invert|isRightAnalog/.test(change.field))) {
       list.append(
         el("div", { class: "check-verdict bad" }, [
-          `This changes how the ${unit.toLowerCase()}'s stick is inverted: ` +
+          `Changes the ${unit.toLowerCase()}'s stick inversion: ` +
             plan.changes
               .filter((change) => /invert|isRightAnalog/.test(change.field))
               .map((change) => describeChange(plan.target.slug, change))
@@ -4856,12 +4839,39 @@ function renderWriteBar(run: WriteRun): HTMLElement {
     );
     bar.append(
       el("div", { class: "check-note" }, [
-        'Once per unit: the browser lists both as "Azeron Keypad - C0nf1gur4t0r". Pick ' +
-          "either; the page works out which it is and remembers it.",
+        'Tick both "Azeron Keypad - C0nf1gur4t0r" entries, then Connect. ' +
+          "Hands are sorted by each unit's id.",
       ]),
     );
     const strangers = unnamedUnits(run);
     if (strangers !== null) bar.append(strangers);
+  }
+  const [firstHand, secondHand] = run.plans;
+  if (
+    canSave() &&
+    run.plans.length === 2 &&
+    firstHand !== undefined &&
+    secondHand !== undefined &&
+    firstHand.target.device !== secondHand.target.device &&
+    firstHand.target.softwareDeviceId !== undefined &&
+    secondHand.target.softwareDeviceId !== undefined
+  ) {
+    buttons.append(
+      swapHandsButton(
+        firstHand.target.device,
+        secondHand.target.device,
+        () => {
+          endWrite(false);
+          void refreshPayload().then(() => {
+            startWrite();
+          });
+        },
+        (message) => {
+          run.note = message;
+          render();
+        },
+      ),
+    );
   }
   const writable = run.plans.filter(
     (plan) => plan.found !== null && plan.slot !== null && !upToDate(plan),
@@ -4883,8 +4893,8 @@ function renderWriteBar(run: WriteRun): HTMLElement {
   bar.append(
     el("div", { class: "check-note" }, [
       run.plans.some((plan) => profileFor(plan.target.slug).device.hasSensor)
-        ? "Every key, the stick and the timings are written. The slot's lights, sensor and DPI stay as they are."
-        : "Every key, the stick and the timings are written. The slot's lights stay as they are.",
+        ? "Writes keys, stick and timings. Lights, sensor and DPI are kept."
+        : "Writes keys, stick and timings. Lights are kept.",
     ]),
     buttons,
   );
@@ -4959,7 +4969,7 @@ async function saveScheme(quiet = false): Promise<void> {
   if (inGameKeys || inGamePedals) {
     const what = inGameKeys && inGamePedals ? "keys and pedals" : inGamePedals ? "pedals" : "keys";
     const step = el("div", { class: "game-step" }, [
-      el("div", {}, [`The game does not know about the new ${what} yet.`]),
+      el("div", {}, [`The game does not have the new ${what} yet.`]),
     ]);
     const update = el("button", { class: "btn small", type: "button" }, [UPDATE_GAME]);
     update.addEventListener("click", () => {
@@ -5010,7 +5020,7 @@ function exportJson(slug: string): void {
   const templatePath = profile.template ?? game.template;
   const template = state.payload.templates[templatePath];
   if (!template) {
-    window.alert(`The export ${templatePath} is not in the page. Reload it.`);
+    window.alert(`Export ${templatePath} is missing from the page. Reload.`);
     return;
   }
   const doc = compileProfile(profile, { template, actions: actionSetFor(game).actions });
@@ -5082,7 +5092,7 @@ function renderHeader(): HTMLElement {
     render();
   });
   header.append(
-    el("label", { class: "picker", title: "A layout is both keypads and the in-game keys" }, [
+    el("label", { class: "picker", title: "Both keypads and the in-game keys" }, [
       el("span", {}, ["Layout"]),
       setSelect,
     ]),
@@ -5117,8 +5127,8 @@ function renderHeader(): HTMLElement {
       ]);
       imports.title =
         behind === null
-          ? "Saved since the units were last written. Click to write them."
-          : `${String(count)} unit(s) do not have this layout as it is now. Click for which keys.`;
+          ? "Saved since the units were written. Click to write."
+          : `${String(count)} unit(s) differ from this layout. Click for which keys.`;
       imports.addEventListener("click", () => {
         if (units === null) {
           startWrite();
@@ -5133,7 +5143,7 @@ function renderHeader(): HTMLElement {
       const tell = el("button", { class: "pill todo", type: "button", "data-todo": "game" }, [
         UPDATE_GAME,
       ]);
-      tell.title = "The game has not been told about the new keys or pedals yet.";
+      tell.title = "The game lacks the new keys or pedals.";
       tell.addEventListener("click", () => {
         const blocked = gameUpdateBlocked();
         if (blocked !== null) {
@@ -5156,7 +5166,7 @@ function renderHeader(): HTMLElement {
       const status = el("span", { class: `save-status${dirty ? " pending" : ""}` }, [
         dirty ? "Saving…" : "Saved",
       ]);
-      status.title = "Changes are saved as you make them. Autosave can be turned off in the menu.";
+      status.title = "Autosave is on. Turn it off in the menu.";
       header.append(status);
     } else {
       const save = el(
@@ -5178,7 +5188,7 @@ function renderHeader(): HTMLElement {
   }
   // The layout straight into the units: both hands, each into the slot that holds it.
   const write = el("button", { class: "btn write-units", type: "button" }, ["Write to units"]);
-  write.title = "Write this layout into the units' onboard memory over USB. Saves first.";
+  write.title = "Write this layout to the units over USB. Saves first.";
   if (writeRun !== null) write.setAttribute("disabled", "disabled");
   write.addEventListener("click", startWrite);
   header.append(write);
@@ -5190,7 +5200,7 @@ function renderHeader(): HTMLElement {
     );
     // The label stays the same: a longer one re-wrapped the header and moved the board.
     tester.setAttribute("aria-pressed", liveTester === null ? "false" : "true");
-    tester.title = "Press keys on a unit and see which control sends what, live.";
+    tester.title = "Press keys on a unit: the control that sends it lights up.";
     if (checkRun !== null || writeRun !== null) tester.setAttribute("disabled", "disabled");
     tester.addEventListener("click", () => {
       if (liveTester === null) startTester();
@@ -5227,9 +5237,7 @@ function renderHeader(): HTMLElement {
     const on = autosaveOn();
     item(on ? "Turn autosave off" : "Turn autosave on", () => {
       setAutosave(!on);
-      saveNote = on
-        ? "Autosave is off: changes wait for Save."
-        : "Autosave is on: changes are saved as they are made.";
+      saveNote = on ? "Autosave is off: changes wait for Save." : "Autosave is on.";
       render();
     });
   }
@@ -5287,7 +5295,7 @@ function renderHeader(): HTMLElement {
     {
       class: `btn small utility press-test-tab${state.mode === "press-test" ? " primary" : ""}`,
       type: "button",
-      title: "Find out which pin each key of a unit is wired to. Once per new unit.",
+      title: "Find each key's pin. Once per new unit.",
     },
     ["Press test"],
   );
@@ -5376,7 +5384,7 @@ function actionKeyField(id: string): HTMLElement {
     {
       class: `key-chip${isCapturing ? " capturing" : ""}${current === null ? " unset" : ""}`,
       type: "button",
-      title: isCapturing ? "Press a key, or click here with a mouse button" : "Click to change",
+      title: isCapturing ? "Press a key, or click a mouse button" : "Click to change",
     },
     [isCapturing ? "Press a key…" : (current ?? "Not bound")],
   );
@@ -5442,25 +5450,16 @@ function actionKeyField(id: string): HTMLElement {
 function gameFileGaps(game: EditorGame): string[] {
   const gaps: string[] = [];
   if (game.ingameFile?.configured !== true) {
-    gaps.push(
-      "the page has not been told where the game keeps its key settings, so it cannot read " +
-        "or change them.",
-    );
+    gaps.push("the game's key settings file is not set.");
   }
   // Elite's file is owned control by control, through each action's `ingame`; only an
   // Unreal ini is split into categories the layout owns and ones it leaves to the game.
   const categorised = (game.ingameFile?.format ?? "unreal-ini") === "unreal-ini";
   if (categorised && (game.ingameFile?.ownedCategories ?? 0) === 0) {
-    gaps.push(
-      "it does not know which parts of that file the layout controls, so it cannot tell its " +
-        "own keys from the game's menu keys.",
-    );
+    gaps.push("which parts of that file the layout owns are not set.");
   }
   if (!Object.values(game.actions.actions ?? {}).some((spec) => spec.ingame !== undefined)) {
-    gaps.push(
-      "none of the actions names the row it is in the game's settings, so the page cannot " +
-        "tell which setting each one changes.",
-    );
+    gaps.push("no action names its row in the game's settings.");
   }
   return gaps;
 }
@@ -5560,15 +5559,14 @@ function gameKeysField(game: EditorGame): HTMLElement {
     });
     const more = left.length > 6 ? ", and more" : "";
     return el("div", { class: "game-keys-left" }, [
-      `${String(left.length)} action(s) are not sent on a key the game is known to use. Set ` +
-        "these in the game's controls screen, or give each its Keyboard binding below: " +
-        `${names.join(", ")}${more}.`,
+      `${String(left.length)} action(s) not on a key the game uses. Set them in the game, ` +
+        `or give each a Keyboard binding below: ${names.join(", ")}${more}.`,
     ]);
   };
   if (preview.changed.length === 0) {
     row.append(
       left.length === 0
-        ? el("span", { class: "muted" }, ["Every action the units send is on the game's own key."])
+        ? el("span", { class: "muted" }, ["Every action is on the game's own key."])
         : leftNote(),
     );
     return row;
@@ -5576,21 +5574,19 @@ function gameKeysField(game: EditorGame): HTMLElement {
   const use = el("button", { class: "btn small primary", type: "button", "data-game-keys": "" }, [
     "Send the game's keys",
   ]);
-  use.title =
-    "Change what the units send for these actions to each one's Keyboard binding, so the " +
-    "game needs no changes.";
+  use.title = "Send each action's Keyboard binding, so the game needs no changes.";
   use.addEventListener("click", () => {
     const done = useGameKeys(editableActions(), game);
     saveNote =
-      `${String(done.changed.length)} action(s) now send the game's own key.` +
+      `${String(done.changed.length)} action(s) now send the game's key.` +
       (done.unresolved.length > 0
-        ? ` ${String(done.unresolved.length)} still have to be set in the game's controls screen.`
+        ? ` ${String(done.unresolved.length)} must be set in the game.`
         : "");
     render();
   });
   row.append(
     el("span", {}, [
-      `${String(preview.changed.length)} action(s) are sent on a key the game does not use. `,
+      `${String(preview.changed.length)} action(s) sent on a key the game does not use. `,
     ]),
     use,
   );
@@ -5608,9 +5604,8 @@ function gameFileStatus(game: EditorGame): HTMLElement | null {
   const box = el("div", { class: "note game-file" }, [
     el("b", {}, [`${game.name} keeps its own keys`]),
     el("div", {}, [
-      "The page cannot change this game's key settings, so the units send the keys the game " +
-        "already uses: each action's Keyboard binding below. If you change a key in the game, " +
-        "change it here to match.",
+      "Game settings are not changed: the units send each action's Keyboard binding below. " +
+        "Change a key in the game, change it here.",
     ]),
   ]);
   box.append(gameKeysField(game));
@@ -5630,11 +5625,8 @@ function gameFileStatus(game: EditorGame): HTMLElement | null {
 function gameFileMissing(game: EditorGame): HTMLElement | null {
   if (game.ingameFile?.configured !== true || game.ingameFile.found !== false) return null;
   const note = el("div", { class: "note game-file-missing" }, [
-    el("b", {}, [`${game.name}'s key settings file was not found on this computer`]),
-    el("div", {}, [
-      "If the game is installed, start it once so it writes the file. If it keeps its " +
-        "settings somewhere else, paste the file's location here.",
-    ]),
+    el("b", {}, [`${game.name}'s key settings file was not found`]),
+    el("div", {}, ["Start the game once so it writes it, or paste the file's location."]),
   ]);
   if (!canSave()) return note;
   const path = el("input", {
@@ -5655,8 +5647,8 @@ function gameFileMissing(game: EditorGame): HTMLElement | null {
         } else {
           const loaded = await refreshPayload();
           repoNote = loaded
-            ? `Found it. ${game.name}'s keys are read from that file now.`
-            : "Found it. Reload the page to use it.";
+            ? `Found. ${game.name}'s keys are read from it.`
+            : "Found. Reload to use it.";
         }
         saveNote = repoNote;
         render();
@@ -5757,8 +5749,8 @@ function kbmField(id: string, spec: ActionSpec): HTMLElement {
       type: "button",
       "data-kbm": id,
       title: capturing
-        ? "Press a key (with Shift, Ctrl or Alt if you like), or click or scroll on this"
-        : "The key or mouse button for this on a keyboard and mouse",
+        ? "Press a key (modifiers allowed), or click or scroll here"
+        : "Keyboard and mouse binding",
     },
     [capturing ? "Press a key or click…" : spec.kbm === undefined ? "—" : kbmLabel(spec.kbm)],
   );
@@ -5842,8 +5834,7 @@ function capturePad(id: string): void {
       playerCapture = {
         id,
         kind: "pad",
-        problem:
-          "No controller press seen. Is a pad plugged in? Press any button on it once first.",
+        problem: "No controller press seen. Press any button on the pad once first.",
       };
       render();
       return;
@@ -5896,7 +5887,7 @@ function padField(id: string, spec: ActionSpec): HTMLElement {
   const press = el("button", { class: "btn small", type: "button", "data-pad-press": id }, [
     capturing && playerCapture?.problem === undefined ? "Press it on the pad…" : "Press on pad",
   ]);
-  press.title = "Press the button or push the stick on a connected controller";
+  press.title = "Press a button or push a stick on the controller";
   press.addEventListener("click", () => {
     capturePad(id);
   });
@@ -5933,7 +5924,7 @@ function renderDeviceBoards(actions: Readonly<Record<string, ActionSpec>>): HTML
     boardsOpen = details.open;
   });
   details.append(
-    el("summary", {}, ["See them on a keyboard, a mouse and a controller"]),
+    el("summary", {}, ["Keyboard, mouse and controller"]),
     el("div", { class: "device-boards-body" }, [
       keyboardBoard(actions, showActionRow),
       padBoard(actions, showActionRow),
@@ -6058,8 +6049,7 @@ function controlListField(): HTMLElement {
   details.append(
     el("summary", {}, ["Add several controls at once"]),
     el("div", { class: "muted" }, [
-      "One control per line. After a colon, its key and its controller button if you know " +
-        'them: "Reload: R / X button". Leave them off and set them on the row later.',
+      'One control per line, optionally with keys: "Reload: R / X button".',
     ]),
     area,
     el("div", { class: "manage-row" }, [add]),
@@ -6200,11 +6190,9 @@ function usualBindingsField(game: EditorGame): HTMLElement {
   ]);
   if (count === 0) {
     fill.setAttribute("disabled", "disabled");
-    fill.title = "Every action with a usual key or button is already on one.";
+    fill.title = "Every action with a usual binding has one.";
   } else {
-    fill.title =
-      `Give ${String(count)} action(s) the keyboard key and controller button games of ` +
-      "this kind usually use. Bindings you have set stay as they are.";
+    fill.title = `Give ${String(count)} action(s) the usual keyboard key and pad button. Yours are kept.`;
   }
   fill.addEventListener("click", () => {
     const actions = editableActions();
@@ -6238,8 +6226,7 @@ function renderInGame(): HTMLElement {
   const help = el("details", { class: "ingame-help" }, [
     el("summary", {}, ["How this page works"]),
     el("div", { class: "note" }, [
-      "Click a name to rename it. The role switches tell the checks what each action is " +
-        "for, so a menu never lands on a combat key.",
+      "Click a name to rename it. Roles tell the checks what each action is for.",
     ]),
   ]);
   const toggle = el("button", { class: "btn small", type: "button", "data-wiring": "toggle" }, [
@@ -6252,17 +6239,12 @@ function renderInGame(): HTMLElement {
   help.append(
     el("div", { class: "note wiring-note" }, [
       wiring
-        ? "The key each action reaches the game on. Click one and press another key to " +
-          "change it; a clash shows straight away. " +
-          (connected
-            ? "Saving offers to update the game to match. "
-            : "Set the same keys in the game's own controls screen. ")
-        : "Each action reaches the game on a key the editor picks for it, and Update the " +
-          "game's keys… tells the game, so there is nothing to set here. ",
+        ? "The key each action sends. Click one and press another to change it. " +
+          (connected ? "Saving offers to update the game. " : "Set the same keys in the game. ")
+        : "Keys are chosen for you; Update the game's keys… applies them. ",
     ]),
     el("div", { class: "note usual-note" }, [
-      "Playing on a keyboard and mouse, or a controller? Fill in the usual bindings starts " +
-        "from the keys and buttons games like this usually use; change any below.",
+      "Fill in the usual bindings adds the keys and pad buttons games like this use.",
     ]),
   );
   tools.append(toggle, usualBindingsField(game), help);
@@ -6275,8 +6257,7 @@ function renderInGame(): HTMLElement {
   if (unnamed > 0) {
     panel.append(
       el("div", { class: "note" }, [
-        `${String(unnamed)} action(s) are still named after their key. Rename each one for ` +
-          "what it does in the game, and give it its roles.",
+        `${String(unnamed)} action(s) still named after their key. Rename them and set roles.`,
       ]),
     );
   }
@@ -6319,7 +6300,7 @@ function renderInGame(): HTMLElement {
     item.append(actionTagField(id, spec));
     if (canDeleteAction(game, id)) {
       const remove = el("button", { class: "btn small delete-action", type: "button" }, ["Delete"]);
-      remove.title = "Take this action out of the game. It is on no key.";
+      remove.title = "Remove this action. It is on no key.";
       remove.addEventListener("click", () => {
         removeKey(editableActions(), id);
         if (playerCapture?.id === id) playerCapture = null;
@@ -6445,7 +6426,7 @@ function exportPicker(onChosen: (fileName: string, exported: unknown) => void): 
       }
       const profiles = (exported as { profiles?: unknown[] } | null)?.profiles;
       if (!Array.isArray(profiles) || profiles.length === 0) {
-        repoNote = `${chosen.name} has no profiles in it -- is it an Azeron export?`;
+        repoNote = `${chosen.name} is not an Azeron export (no profiles).`;
         render();
         return;
       }
@@ -6463,9 +6444,7 @@ function exportPicker(onChosen: (fileName: string, exported: unknown) => void): 
     file.click();
   });
 
-  const drop = el("div", { class: "dropzone" }, [
-    "Drop an exported .json here, or use the button.",
-  ]);
+  const drop = el("div", { class: "dropzone" }, ["Drop an export .json here."]);
   for (const name of ["dragenter", "dragover"]) {
     drop.addEventListener(name, (event) => {
       event.preventDefault();
@@ -6509,7 +6488,7 @@ async function addLayoutFromScratch(name: string): Promise<void> {
   }
   // The copy is made on the server, from what is saved: unsaved edits would not be in it.
   if (from !== "" && isDirty()) {
-    say("Save your changes first: the copy is made from the layout as it is saved.");
+    say("Save first: the copy is made from the saved layout.");
     return;
   }
   say(`adding ${name}...`);
@@ -6573,7 +6552,7 @@ async function addLayoutFromExports(): Promise<void> {
     say(
       name === ""
         ? "Give the layout a name first."
-        : `"${name}" cannot be a layout name: letters, digits, dots and dashes only.`,
+        : `Layout name: letters, digits, dots and dashes only.`,
     );
     return;
   }
@@ -6627,7 +6606,7 @@ async function addLayoutFromExports(): Promise<void> {
     repoNote = `${done} It is the selected layout now.`;
     saveNote = repoNote;
   } else {
-    repoNote = `${done} Save or discard your unsaved edits and reload the page to open it.`;
+    repoNote = `${done} Save or discard edits, then reload to open it.`;
   }
   render();
 }
@@ -6680,9 +6659,7 @@ function renderNewGame(): HTMLElement {
   box.append(
     section(
       "Add a new game",
-      "For a game that is not in the Game selector. Name it, say what kind of game it is " +
-        "and how to lay it out: it starts with that kind's actions on both units, ready to " +
-        "rearrange on the Edit tab. No Azeron app needed.",
+      "A game not in the selector. Name it, pick its kind and layout style.",
     ),
   );
 
@@ -6784,15 +6761,11 @@ function renderNewGame(): HTMLElement {
   });
   const picker = exportPicker((chosen, exported) => {
     newGame.file = { name: chosen, exported };
-    repoNote =
-      `${chosen} chosen: the game will start from it. ` +
-      'Press "Create game" when the rest is filled in.';
+    repoNote = `${chosen} chosen. Press "Create game" when ready.`;
     render();
   });
   const chosen = el("div", { class: "muted new-game-file" }, [
-    newGame.file === null
-      ? "No export chosen: the game starts from its genre."
-      : `Export: ${newGame.file.name}`,
+    newGame.file === null ? "No export: starts from the genre." : `Export: ${newGame.file.name}`,
   ]);
   const forget = el("button", { class: "btn", type: "button" }, ["Don't use the export"]);
   forget.addEventListener("click", () => {
@@ -6802,8 +6775,7 @@ function renderNewGame(): HTMLElement {
   const fromApp = el("details", { class: "new-game-export" }, [
     el("summary", {}, ["…or start it from an Azeron app export"]),
     el("div", { class: "muted" }, [
-      "Every key the export sends becomes an action named after the key; rename them as you " +
-        "learn what they do. The layout is for the one unit the export came from.",
+      "Each key the export sends becomes an action named after it. One unit.",
     ]),
     el("div", { class: "row2" }, [
       el("div", { class: "field" }, [el("label", {}, ["Exported from"]), unit]),
@@ -6825,9 +6797,9 @@ function renderNewGame(): HTMLElement {
       gameName === ""
         ? "Give the game a name first."
         : !isFileName(slugFromName(gameName))
-          ? `"${gameName}" has no letters or digits to name a folder after.`
+          ? `"${gameName}" needs a letter or digit.`
           : !isFileName(layoutName)
-            ? `"${layoutName}" cannot be a layout name: letters, digits, dots and dashes only.`
+            ? `Layout name: letters, digits, dots and dashes only.`
             : newGame.file === null && chosenUnits.length === 0
               ? "Choose at least one unit."
               : null;
@@ -6880,9 +6852,8 @@ function renderNewGame(): HTMLElement {
               ? `Created ${String(result.name)} from the ${newGame.genre} layout`
               : `Created ${String(result.name)}, empty: drag actions onto it`) +
             (leftOff.length > 0
-              ? `. ${String(leftOff.length)} of its controls are empty, with no free key to ` +
-                `send on (${leftOff.join(", ")}). Every out-of-the-way key is in use, so ` +
-                "placing one of those means taking another action off first."
+              ? `. ${String(leftOff.length)} control(s) left empty, no free key: ` +
+                `${leftOff.join(", ")}.`
               : ".");
         } else {
           const unnamed = result.unnamed as string[];
@@ -6892,16 +6863,16 @@ function renderNewGame(): HTMLElement {
             (unnamed.length > 0
               ? `, ${String(unnamed.length)} position(s) left raw (${unnamed.join(", ")})`
               : "") +
-            ". Rename the actions as you learn what they do.";
+            ".";
         }
         newGame.name = "";
         newGame.file = null;
         void refreshPayload(String(result.slug)).then((refreshed) => {
           if (refreshed) {
             state.mode = "edit";
-            repoNote = `${done} It is selected in the Game selector now.`;
+            repoNote = `${done} Selected.`;
           } else {
-            repoNote = `${done} Save or discard your unsaved edits and reload the page to open it.`;
+            repoNote = `${done} Save or discard edits, then reload to open it.`;
           }
           render();
         });
@@ -6972,7 +6943,7 @@ function renderGames(): HTMLElement {
   panel.append(
     el("h2", {}, ["Choose a game"]),
     el("div", { class: "muted" }, [
-      "Each game holds its layouts for the units, and its keyboard, mouse and controller keys.",
+      "A game holds its layouts and its keyboard, mouse and controller keys.",
     ]),
   );
   const grid = el("div", { class: "game-gallery" });
@@ -7030,8 +7001,7 @@ async function settleEdits(): Promise<boolean> {
   return !isDirty();
 }
 
-const NOT_SETTLED =
-  "Your edits could not be saved, so nothing else was changed. The header says why.";
+const NOT_SETTLED = "Edits not saved, so nothing else was changed. See the header.";
 
 /** After a change on the server: the page's data again, then the place and a note. */
 async function afterManage(note: string, set?: string): Promise<void> {
@@ -7040,7 +7010,7 @@ async function afterManage(note: string, set?: string): Promise<void> {
   if (set !== undefined && currentGame().slug === game && setsOf(currentGame()).has(set)) {
     state.setName = set;
   }
-  repoNote = loaded ? note : `${note} Reload the page to see it.`;
+  repoNote = loaded ? note : `${note} Reload to see it.`;
   render();
 }
 
@@ -7054,10 +7024,8 @@ function renderDiscover(): HTMLElement {
   box.append(
     section(
       `Read ${game.name}'s controls from a file`,
-      "Paste the location of the game's input file (an Unreal game's Input.ini or " +
-        "DefaultInput.ini). Every control it lists that the game does not have yet is " +
-        "added, with its keyboard and controller keys. Most games keep no such file: list " +
-        "their controls under Add several controls at once on the In-game tab instead.",
+      "Paste the path of the game's Input.ini or DefaultInput.ini. Missing controls are added. " +
+        "No such file: use Add several controls at once on the In-game tab.",
     ),
   );
   const path = el("input", {
@@ -7115,8 +7083,7 @@ function renderManage(): HTMLElement | null {
   box.append(
     section(
       `${game.name}: ${set}`,
-      "Rename the layout on screen, or delete it or the whole game. Deleted files can be " +
-        "got back from the repo's history.",
+      "Rename or delete this layout or game. Deleted files stay in git history.",
     ),
   );
 
@@ -7136,7 +7103,7 @@ function renderManage(): HTMLElement | null {
     const to = name.value.trim();
     if (to === "" || to === set) return;
     if (!isFileName(to)) {
-      repoNote = `"${to}" cannot be a layout name: letters, digits, dots and dashes only.`;
+      repoNote = `Layout name: letters, digits, dots and dashes only.`;
       render();
       return;
     }
@@ -7165,10 +7132,10 @@ function renderManage(): HTMLElement | null {
   );
   if (only) {
     removeLayout.setAttribute("disabled", "disabled");
-    removeLayout.title = "A game keeps at least one layout. Delete the game instead.";
+    removeLayout.title = "A game keeps one layout. Delete the game instead.";
   }
   removeLayout.addEventListener("click", () => {
-    if (!window.confirm(`Delete the layout ${set} from ${game.name}, both units' keys with it?`)) {
+    if (!window.confirm(`Delete the layout ${set} from ${game.name}?`)) {
       return;
     }
     void settleEdits().then(async (settled) => {
@@ -7194,13 +7161,12 @@ function renderManage(): HTMLElement | null {
   );
   if (state.payload.games.length <= 1) {
     removeGame.setAttribute("disabled", "disabled");
-    removeGame.title = "The only game: add another first, as the page needs one to open.";
+    removeGame.title = "The only game: add another first.";
   }
   removeGame.addEventListener("click", () => {
     if (
       !window.confirm(
-        `Delete ${game.name}: every layout, its actions and its keys? This cannot be undone ` +
-          "from the page.",
+        `Delete ${game.name}, all its layouts and actions? This cannot be undone here.`,
       )
     ) {
       return;
@@ -7225,7 +7191,7 @@ function renderManage(): HTMLElement | null {
   const startOver = el("button", { class: "btn", type: "button", "data-manage": "start-over" }, [
     "Start over",
   ]);
-  startOver.title = "Empty every key on the units in this layout. The actions all stay.";
+  startOver.title = "Empty every key in this layout. Actions stay.";
   startOver.addEventListener("click", () => {
     state.mode = "edit";
     clearAllKeys();
@@ -7242,11 +7208,7 @@ function renderRepo(): HTMLElement {
   panel.append(el("h2", {}, ["Setup"]));
 
   if (!canSave()) {
-    panel.append(
-      el("div", { class: "empty-state" }, [
-        "Adding games and layouts needs the editor running: start it with npm start.",
-      ]),
-    );
+    panel.append(el("div", { class: "empty-state" }, ["Needs the served editor: npm start."]));
     return panel;
   }
 
@@ -7264,9 +7226,7 @@ function renderRepo(): HTMLElement {
   importRow.append(
     section(
       `Add a layout to ${currentGame().name}`,
-      `Another layout of ${currentGame().name}: a copy of one it has, to change into the next ` +
-        "version, or an empty one to lay out from scratch. For a game that is not in the " +
-        "Game selector, add the game above.",
+      "A copy of an existing layout, or an empty one.",
     ),
   );
 
@@ -7349,8 +7309,7 @@ function renderRepo(): HTMLElement {
   const fromApp = el("details", { class: "add-layout-export" }, [
     el("summary", {}, ["…or from Azeron app exports"]),
     el("div", { class: "muted" }, [
-      "Export each unit's profile in the Azeron app and drop it here; either half alone is a " +
-        "layout too. The export is kept as what the compiler builds on.",
+      "Export a unit's profile from the Azeron app and drop it here. One unit is enough.",
     ]),
     exports,
   ]);
@@ -7375,9 +7334,8 @@ function renderRepo(): HTMLElement {
     section(
       "The game's keys",
       fileStatus === null
-        ? "The keys and pedals inside the game come from this layout. Compare shows where the " +
-            "game disagrees; Update makes it agree. Close the game first."
-        : "Reading the game's own key settings, and writing this layout's keys into them.",
+        ? "Compare shows where the game differs; Update applies this layout. Close the game first."
+        : "Reads the game's key settings and writes this layout's keys into them.",
     ),
   );
   if (fileStatus !== null) panel.append(fileStatus);
@@ -7520,7 +7478,7 @@ function startProbeRun(then: ProbeRun["then"]): void {
     // Write to units has the units open and is mid-exchange; two sessions on one unit
     // would read each other's answers.
     run.stage = "failed";
-    run.note = "Write to units is still working. Try again when it has finished.";
+    run.note = "Write to units is still running. Try again when it finishes.";
     render();
     return;
   }
@@ -7545,11 +7503,9 @@ async function connectProbeRun(run: ProbeRun): Promise<void> {
   try {
     const hid = unitsApi();
     if (!hid) {
-      throw new Error(
-        "This browser has no WebHID, which talking to the units needs. Use Chrome or Edge.",
-      );
+      throw new Error("No WebHID in this browser. Use Chrome or Edge.");
     }
-    step("Checking nothing else is talking to the units…");
+    step("Checking the units are free…");
     const running = await azeronAppRunning();
     if (!alive()) return;
     if (running === true) {
@@ -7723,15 +7679,13 @@ function renderProbeBar(): HTMLElement {
     bar.append(el("div", { class: kind }, [text]));
   };
   if (unitsApi() === undefined) {
-    say("Putting the press test on a unit needs WebHID: open this page in Chrome or Edge.");
+    say("No WebHID in this browser. Use Chrome or Edge.");
     return bar;
   }
   const run = probeRun;
   if (run === null) {
     say(
-      "The press test uses two dedicated profiles in which every control sends a unique key, " +
-        "identifying the pin that fired. They are installed on the units over USB and removed " +
-        "when you finish.",
+      "Installs two profiles on the units in which every control sends a unique key. Removed when you finish.",
       "muted",
     );
     button(
@@ -7752,10 +7706,7 @@ function renderProbeBar(): HTMLElement {
     return bar;
   }
   if (run.stage === "app-running") {
-    say(
-      "The Azeron app is running, and it talks to the units on the same channel. Quit it " +
-        "from its tray icon, then try again.",
-    );
+    say("The Azeron app is running. Quit it from its tray, then try again.");
     button(
       "Try again",
       () => {
@@ -7764,10 +7715,7 @@ function renderProbeBar(): HTMLElement {
       true,
     );
   } else if (run.stage === "app-unknown") {
-    say(
-      "This page cannot see what else is running. Make sure no other keypad software is " +
-        "open: it talks to the units on the same channel.",
-    );
+    say("Cannot tell what else is running. Close any other keypad software.");
     button(
       "Nothing else is open",
       () => {
@@ -7779,9 +7727,8 @@ function renderProbeBar(): HTMLElement {
   } else if (run.stage === "needs-access") {
     say(
       run.units.length === 0
-        ? "No unit is open to this page yet. Plug one in and choose it: the browser lists " +
-            'each as "Azeron Keypad - C0nf1gur4t0r". Once per unit.'
-        : "The page reached a unit, but does not yet know which hand it is.",
+        ? "No unit is open to this page yet. Tick both keypads, then Connect."
+        : "A unit is open, but its hand is unknown.",
     );
     const strangers = run.units.filter((unit) => deviceForUnit(unit) === undefined);
     const claimed = new Set(run.units.map((unit) => deviceForUnit(unit)?.device));
@@ -7802,11 +7749,7 @@ function renderProbeBar(): HTMLElement {
     }
     const anyOn = known.some(holdsProbe);
     if (anyOn) {
-      say(
-        "Each unit runs the pass shown below (Pins or Stick zero). Remove the press test when " +
-          "you finish; until then, the profile button can still select it.",
-        "muted",
-      );
+      say("Each unit runs the pass shown below. Remove the press test when you finish.", "muted");
       button(
         "Take the press test off",
         () => {
@@ -7831,6 +7774,24 @@ function renderProbeBar(): HTMLElement {
     });
     if (naming !== null) bar.append(naming);
     if (free.length > 0) button("Choose the other unit", grantProbeUnit);
+    // Only with the press test off the units: it was built for the hand each unit was taken for.
+    const hands = known.map((unit) => deviceForUnit(unit)?.device);
+    const [handA, handB] = hands;
+    if (canSave() && !anyOn && handA !== undefined && handB !== undefined && handA !== handB) {
+      buttons.append(
+        swapHandsButton(
+          handA,
+          handB,
+          () => {
+            startProbeRun(run.then);
+          },
+          (message) => {
+            run.note = message;
+            render();
+          },
+        ),
+      );
+    }
   } else {
     button(
       "Try again",
@@ -8020,7 +7981,7 @@ function renderMissingUnit(slug: string): HTMLElement | null {
   if (device === undefined) return null;
   const box = el("div", { class: "empty-state missing-unit" });
   if (!canSave()) {
-    box.append(`This layout has no ${want} unit. Open the editor with npm start to add one.`);
+    box.append(`No ${want} unit in this layout. Use npm start to add one.`);
     return box;
   }
   const add = el("button", { class: "btn primary", type: "button" }, [`Add the ${want} unit`]);
@@ -8049,9 +8010,7 @@ async function addMissingUnit(device: string, hand: string): Promise<void> {
   // Only back to the layout if its game is still the one on screen: another game chosen
   // while the unit was being added keeps the layout it opened on.
   if (currentGame().slug === game) state.setName = set;
-  saveNote = loaded
-    ? `Added the ${hand} unit. Drag actions onto its keys.`
-    : `Added the ${hand} unit. Reload the page to see it.`;
+  saveNote = loaded ? `Added the ${hand} unit.` : `Added the ${hand} unit. Reload to see it.`;
   render();
 }
 

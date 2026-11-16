@@ -558,7 +558,7 @@ export function checkProfile(profile: Profile, actions: ActionSet, config: LintC
   return findings;
 }
 
-/** Cross-unit rules: required coverage, and mirrored roles on akimbo pairs. */
+/** Cross-unit rules: required coverage. */
 export function checkSet(
   profiles: readonly Profile[],
   actions: ActionSet,
@@ -601,29 +601,6 @@ export function checkSet(
     }
   }
 
-  if (profiles.length === 2) {
-    const [left, right] = profiles as [Profile, Profile];
-    for (const position of Object.keys(left.positions)) {
-      if (!(position in right.positions)) continue;
-      const roles = [left, right].map((profile) => {
-        const tap = profile.positions[position]?.tap;
-        const tags = typeof tap === "string" ? actions.tags(tap) : new Set<string>();
-        return ROLE_TAGS.find((tag) => tags.has(tag)) ?? null;
-      });
-      const [leftRole, rightRole] = roles;
-      if (leftRole && rightRole && leftRole !== rightRole) {
-        findings.push({
-          level: WARNING,
-          rule: "akimbo-role-mismatch",
-          profile: setName,
-          position,
-          message:
-            `mirrored position does ${leftRole} on ${String(left.unit)} but ${rightRole} on ` +
-            `${String(right.unit)}, so the same finger learns two unrelated jobs`,
-        });
-      }
-    }
-  }
   return findings;
 }
 

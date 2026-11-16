@@ -4,7 +4,22 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ## Unreleased
 
+### Removed
+
+- **The `akimbo-role-mismatch` check.** It warned when a mirrored position did different jobs
+  on the two hands, which every layout that specialises the hands does on purpose, so each one
+  carried accepted entries for it. The check, the accepted entries in Everspace 2's
+  `game.yaml`, and the styles' `acknowledge` lists that wrote them into new games are gone.
+
+### Added
+
+- **Swap left and right.** The write bar and the press test bar swap which unit is which hand
+  in `local.yaml`, both at once, for a unit named for the wrong hand.
+
 ### Changed
+
+- **Much less text in the editor.** Notes, hints, tooltips and prompts are labels and short
+  fragments; messages that report a fact keep it.
 
 - **The editor opens at `relaymatrix.localhost`.** `azeron serve` prints and opens
   `http://relaymatrix.localhost:4173` instead of a bare address; `localhost` and `127.0.0.1`

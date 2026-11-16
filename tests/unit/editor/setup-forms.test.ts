@@ -195,7 +195,7 @@ describe("adding a layout from the Azeron app's exports", () => {
     type("../escape");
     await choose("cyborg2-left", "left.json");
     button("Add layout").click();
-    expect(note()).toContain("cannot be a layout name");
+    expect(note()).toContain("Layout name: letters, digits, dots and dashes only");
     expect(calls).toEqual([]);
   });
 
@@ -358,9 +358,7 @@ describe("starting a new game", () => {
     const details = form().querySelector("details.new-game-export");
     expect(details?.querySelector("summary")?.textContent).toContain("Azeron app export");
     expect(details?.hasAttribute("open")).toBe(false);
-    expect(form().querySelector(".new-game-file")?.textContent).toContain(
-      "the game starts from its genre",
-    );
+    expect(form().querySelector(".new-game-file")?.textContent).toContain("starts from the genre");
   });
 });
 

@@ -200,7 +200,7 @@ describe("rules catch the known failures", () => {
     expect(rules(checkSet([profile], game.actions), ERROR)).toContain("missing-required");
   });
 
-  it("warns when an akimbo pair puts unrelated roles on the same position", () => {
+  it("lets the two hands do different jobs on the same position", () => {
     const left = new Profile(structuredClone(base.data), base.device, { path: base.path, game });
     const rightData = structuredClone(base.data);
     rightData.profile.device = "cyborg2-right";
@@ -208,7 +208,7 @@ describe("rules catch the known failures", () => {
     const position = rightData.positions.pinky_1;
     if (position) position.tap = "map"; // menu where the left hand has combat
     const right = new Profile(rightData, base.device, { path: base.path, game });
-    expect(rules(checkSet([left, right], game.actions), WARNING)).toContain("akimbo-role-mismatch");
+    expect(rules(checkSet([left, right], game.actions), WARNING)).toEqual([]);
   });
 });
 

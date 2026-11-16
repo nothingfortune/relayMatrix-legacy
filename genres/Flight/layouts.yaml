@@ -9,9 +9,6 @@ controller:
     Mode 2 sticks, RT for the gun, RB for missiles, the d-pad for the camera -- an Xbox pad
     laid over the pair.
   stick_mode: mode2
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     index_4: {label: Change target, tap: target_change}
   right:

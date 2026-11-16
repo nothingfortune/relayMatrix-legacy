@@ -1,7 +1,7 @@
 /**
- * Constraints on the live akimbo pair, from the two failures recorded on 2026-09-28: the
- * right hand carried too few bindings to play without a gamepad, and mirrored positions
- * carried unrelated roles.
+ * Constraints on the live akimbo pair, from the failure recorded on 2026-09-28: the right
+ * hand carried too few bindings to play without a gamepad. (Mirrored positions carrying
+ * unrelated roles is no longer checked: the hands are specialised on purpose.)
  *
  * Departures the layout has earned are recorded as acknowledgements in game.yaml rather
  * than asserted here.
@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { applyAcknowledgements, checkSet, iterBindings } from "../../../src/lib/lint.js";
+import { iterBindings } from "../../../src/lib/lint.js";
 import { loadProfile } from "../../../src/lib/io.js";
 import { Game } from "../../../src/lib/model.js";
 import type { Profile } from "../../../src/lib/model-core.js";
@@ -44,14 +44,6 @@ describe("the akimbo pair", () => {
     const counts = profiles.map((profile) => bound(profile).size);
     expect(Math.min(...counts)).toBeGreaterThanOrEqual(15);
     expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(6);
-  });
-
-  it("puts the same role at the same position on both hands, or says why not", () => {
-    // The pair specialises the hands, which the rule catches by design. Each departure is
-    // a line in game.yaml with a reason; an undeclared one is the 2026-09-28 failure again.
-    const findings = checkSet(profiles, game.actions);
-    const { live } = applyAcknowledgements(findings, game.lintConfig.acknowledged ?? []);
-    expect(live.filter((finding) => finding.rule === "akimbo-role-mismatch")).toEqual([]);
   });
 
   it("never delays a tap or latches a key", () => {

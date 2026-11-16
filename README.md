@@ -120,7 +120,6 @@ rule:
 | `menu-with-combat`                    | warning | A menu on a key you mash or hold in a fight                       |
 | `hold-on-movement`                    | warning | A latching flight key — boost must not latch                      |
 | `duplicate-output-key`                | warning | The same key sent from two positions                              |
-| `akimbo-role-mismatch`                | warning | The same finger doing unrelated jobs on each hand                 |
 | `label-names-other-action`            | warning | A key labelled with another action's name, which the unit shows   |
 | `pedal-duplicates-stick`              | warning | A pedal and a stick both sending one axis                         |
 | `pedal-rest-on-centred`               | warning | A toe brake, uncalibrated, on an axis read about a centre         |

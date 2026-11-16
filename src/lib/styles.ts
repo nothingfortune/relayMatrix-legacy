@@ -23,8 +23,6 @@ export interface StyleSpec {
   stick_mode?: string;
   /** What the new game's actions.yaml says of an action beyond its key; null removes. */
   actions?: Record<string, Record<string, unknown>>;
-  /** Mirrored positions whose two hands do different jobs on purpose, and why. */
-  acknowledge?: { reason: string; positions: string[] };
   /** A hand's positions, or `default` for the genre's single-unit default.yaml. */
   left?: "default" | Record<string, PositionSpec>;
   right?: "default" | Record<string, PositionSpec>;
@@ -57,8 +55,6 @@ export function parseStyles(data: unknown, where: string): Record<string, StyleS
 export interface BuiltStyle {
   left: Record<string, PositionSpec>;
   right: Record<string, PositionSpec>;
-  /** Positions both hands use, for different jobs on purpose; for lint.acknowledged. */
-  acknowledge: { reason: string; positions: string[] } | null;
   /** Overrides for the new game's actions.yaml. */
   actions: Record<string, Record<string, unknown>>;
 }
@@ -106,7 +102,6 @@ export function buildStyle(name: string, style: StyleSpec, inputs: StyleInputs):
   return {
     left,
     right,
-    acknowledge: style.acknowledge ?? null,
     actions: structuredClone(style.actions ?? {}),
   };
 }

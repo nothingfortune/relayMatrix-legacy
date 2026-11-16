@@ -125,7 +125,7 @@ describe("what the Azeron app has, against the layout", () => {
     mount(withApp());
     await settle();
     expect(pill()?.textContent).toBe("Not on the units");
-    expect(pill()?.title).toContain("1 unit(s) do not have this layout");
+    expect(pill()?.title).toContain("1 unit(s) differ from this layout");
   });
 
   it("marks a key the unit does something else on, and says what", async () => {
@@ -147,7 +147,7 @@ describe("what the Azeron app has, against the layout", () => {
     const report = document.querySelector(".units-report");
     const text = report?.textContent ?? "";
     expect(text).toContain("Right unit -- 2 controls differ");
-    expect(text).toContain("Write to units puts it on them");
+    expect(text).toContain("Not on the units. Write to units");
     expect(text).not.toContain("Import");
     expect(text).toContain('Ring 4: the unit has Inventory (I) -- labelled "Inventory"');
     expect(text).toContain('Middle 5: the same key, named "Bag (I)" on the unit');
@@ -162,7 +162,7 @@ describe("what the Azeron app has, against the layout", () => {
     await settle();
     expect(pill()).toBeNull();
     expect(document.querySelector(".units-report")?.textContent).toContain(
-      "The units have this layout as it is now.",
+      "The units have this layout.",
     );
     expect(key(1, "ring_4").classList.contains("unit-stale")).toBe(false);
   });

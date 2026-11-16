@@ -13,9 +13,6 @@ controller:
     Twin sticks, RT and LT to fire, the d-pad for vertical thrust and roll -- an Xbox pad
     laid over the pair, with the consumables and devices in banks under the fingers.
   stick_mode: twin_stick
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     index_1: {label: Travel drive, tap: cruise}
     index_4: {label: Jump drive, tap: supralight}

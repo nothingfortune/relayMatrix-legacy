@@ -340,18 +340,37 @@ export function setLocalGamePath(
  * loses it: one unit cannot be both hands.
  */
 export function setLocalDeviceId(device: string, id: string, root: string = dataRoot): string {
-  if (!/^\d+$/.test(id)) throw new LocalSettingsError(`a unit's id is a number, not "${id}"`);
+  return setLocalDeviceIds({ [device]: id }, root);
+}
+
+/**
+ * Give several device maps their unit's id in one write, so a swap of two hands lands both
+ * or neither. An id held by a map outside the call is taken off it: one unit is one hand.
+ */
+export function setLocalDeviceIds(
+  ids: Readonly<Record<string, string>>,
+  root: string = dataRoot,
+): string {
+  for (const id of Object.values(ids)) {
+    if (!/^\d+$/.test(id)) throw new LocalSettingsError(`a unit's id is a number, not "${id}"`);
+  }
   const file = `${root}/${LOCAL_FILE}`;
   const text = existsSync(file) ? readFileSync(file, "utf8") : LOCAL_HEADER;
   const before = parseLocal(text, file);
   const doc = parseDocument(text);
+  const given = new Set(Object.values(ids));
   for (const [name, entry] of Object.entries(before.devices)) {
-    if (name !== device && entry.software_device_id === id) doc.deleteIn(["devices", name]);
+    const held = entry.software_device_id;
+    if (!(name in ids) && held !== undefined && given.has(held)) {
+      doc.deleteIn(["devices", name]);
+    }
   }
-  // Quoted, as the device maps write it: an id is a name that happens to be digits.
-  const value = new Scalar(id);
-  value.type = Scalar.QUOTE_DOUBLE;
-  doc.setIn(["devices", device, "software_device_id"], value);
+  for (const [device, id] of Object.entries(ids)) {
+    // Quoted, as the device maps write it: an id is a name that happens to be digits.
+    const value = new Scalar(id);
+    value.type = Scalar.QUOTE_DOUBLE;
+    doc.setIn(["devices", device, "software_device_id"], value);
+  }
   writeFileSync(file, doc.toString(), "utf8");
   return file;
 }

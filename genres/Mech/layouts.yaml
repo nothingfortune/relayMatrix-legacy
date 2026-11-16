@@ -5,9 +5,6 @@ controller:
   note: >-
     Left stick moves, right stick turns, the triggers fire the arms and the bumpers the
     back weapons, B quick boosts -- an Xbox pad laid over the pair, as the game has it.
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     middle_2: {label: Left bay, tap: left_bay}
   right:
