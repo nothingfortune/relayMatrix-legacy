@@ -72,6 +72,25 @@ describe("the helper script's text", () => {
     expect(csharp).toContain("VK_CANCEL");
   });
 
+  it("never presses a key once shutdown has begun, even one already past its checks", () => {
+    // TypeCommand checks a key, then takes pressedGate. A cleanup between the two would lift
+    // everything first, and the key would go down after the final release and stay down. So
+    // the test is made inside the lock, and Cleanup raises the flag before it takes that lock.
+    const typeCommand = csharp.slice(
+      csharp.indexOf("static void TypeCommand"),
+      csharp.indexOf("static void ReleaseAll"),
+    );
+    const locked = typeCommand.slice(typeCommand.lastIndexOf("lock (pressedGate)"));
+    const guard = locked.indexOf("if (!up && stopping) return;");
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(locked.indexOf("Press(name, up)"));
+    expect(guard).toBeLessThan(locked.indexOf("pressed[name] ="));
+    const cleanup = csharp.slice(csharp.indexOf("public static void Cleanup()"));
+    const raised = cleanup.indexOf("stopping = true;");
+    expect(raised).toBeGreaterThan(-1);
+    expect(raised).toBeLessThan(cleanup.indexOf("ReleaseAll()"));
+  });
+
   it("ignores injected events and never swallows without a registered trigger", () => {
     expect(csharp).toContain("(k.flags & LLKHF_INJECTED) == 0");
     expect(csharp).toContain("if (!keyTriggers.TryGetValue(code, out devices)) return false;");

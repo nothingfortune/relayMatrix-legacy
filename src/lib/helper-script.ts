@@ -407,6 +407,10 @@ namespace RelayMatrix
             }
             lock (pressedGate)
             {
+                // Once shutdown has begun, nothing more goes down: ReleaseAll has run or is about
+                // to, and a key pressed after it would stay down when this process exits. stopping
+                // is set before ReleaseAll takes this lock, so checking it here closes the race.
+                if (!up && stopping) return;
                 if (up) pressed.Remove(name);
                 else if (!pressed.ContainsKey(name)) pressed[name] = Clock.ElapsedMilliseconds;
                 Press(name, up);
