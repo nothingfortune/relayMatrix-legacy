@@ -359,6 +359,55 @@ export function checkProfile(profile: Profile, actions: ActionSet, config: LintC
     });
   }
 
+  // The device's left-right key swap (`stick_directions`) puts right an X the template
+  // inverts, in keyboard mode. Inverting X again there, in the device's map or a layout,
+  // is the same correction twice.
+  const swapsX = device.stickDirections.left === "right" || device.stickDirections.right === "left";
+  if (swapsX && device.stickInvertX.keyboard !== undefined) {
+    findings.push({
+      level: ERROR,
+      rule: "stick-double-correction",
+      profile: name,
+      message:
+        `device ${device.name} swaps left and right (stick_directions) and also sets ` +
+        "stick_invert_x for keyboard mode. Both fix the same reversed X; keep one.",
+    });
+  }
+  if (swapsX) {
+    for (const [position, spec] of Object.entries(profile.positions)) {
+      if (!device.isStick(position) || (spec.mode ?? "keyboard") !== "keyboard") continue;
+      if (spec.invert_x === undefined) continue;
+      findings.push({
+        level: WARNING,
+        rule: "stick-double-correction",
+        profile: name,
+        position,
+        message:
+          `invert_x is set on a keyboard stick, but ${device.name} already swaps left and ` +
+          "right for the template's inversion. If this is not the template's own value, " +
+          "the two cancel; press the stick to check.",
+      });
+    }
+  }
+
+  // The app keeps the hold magnitude at or above the trigger magnitude.
+  for (const [position, spec] of Object.entries(profile.positions)) {
+    if (!device.isStick(position)) continue;
+    const trigger = spec.trigger_magnitude;
+    const hold = spec.hold_magnitude;
+    if (trigger !== undefined && hold !== undefined && hold < trigger) {
+      findings.push({
+        level: WARNING,
+        rule: "stick-magnitude-order",
+        profile: name,
+        position,
+        message:
+          `hold_magnitude ${String(hold)} is below trigger_magnitude ${String(trigger)}; ` +
+          "the app raises the hold to the trigger.",
+      });
+    }
+  }
+
   // Constraint 1: a stick in gamepad mode stutters Everspace 2.
   if (config.require_keyboard_stick) {
     for (const [position, spec] of Object.entries(profile.positions)) {

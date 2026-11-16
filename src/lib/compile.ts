@@ -33,6 +33,7 @@ import { BindingError, blankRecord, resolveSlot, wheelFields } from "./binding.j
 import * as keys from "./keys.js";
 import type { Device, Profile } from "./model-core.js";
 import { messageOf } from "./object.js";
+import { applyStickSettings, StickSettingError } from "./stick-settings.js";
 
 export class CompileError extends Error {}
 
@@ -107,6 +108,7 @@ function applyStick(
   actions: Record<string, ActionSpec> | null,
   position: string,
   device: Device,
+  recordIdOf: (name: string) => number | undefined,
 ): void {
   const mode = spec.mode ?? "keyboard";
   let code = STICK_MODE_CODES[mode];
@@ -123,8 +125,8 @@ function applyStick(
   record.types[0] = code;
 
   const analogSettings = record.analogSettings;
-  // Only written when the unit has actually been measured; the field's units are
-  // unverified, so an unmeasured device leaves whatever the template had.
+  // Only written when the unit has actually been measured, so an unmeasured device leaves
+  // whatever the template had. A layout's own `angle` is applied after this and wins.
   if (analogSettings && device.stickAngle !== undefined) analogSettings.angle = device.stickAngle;
   if (!analogSettings) throw new CompileError(`${position}: template record has no analogSettings`);
   // Every stick record carries the pointer speed; it only does anything in mouse mode, and
@@ -140,6 +142,12 @@ function applyStick(
     analogSettings.mouseSensitivity = value;
   }
   applyTuning(analogSettings, spec, position);
+  try {
+    applyStickSettings(analogSettings, spec, position, mode, device.stickInvertX, recordIdOf);
+  } catch (error) {
+    if (error instanceof StickSettingError) throw new CompileError(error.message);
+    throw error;
+  }
   const live: AnalogDirections = activeAnalogKeys(analogSettings);
 
   for (const direction of STICK_DIRECTIONS) {
@@ -216,12 +224,13 @@ function applyPosition(
   position: string,
   isStick: boolean,
   device: Device,
+  recordIdOf: (name: string) => number | undefined,
 ): void {
   if (spec.label !== undefined) record.label = spec.label;
   else delete record.label;
 
   if (isStick) {
-    applyStick(record, spec, actions, position, device);
+    applyStick(record, spec, actions, position, device, recordIdOf);
   } else {
     SLOTS.forEach((slot: Slot, index: number) => {
       let triple;
@@ -317,6 +326,13 @@ export function compileProfile(profile: Profile, options: CompileOptions = {}): 
     if (!byPin.has(record.pinOne)) byPin.set(record.pinOne, record);
   }
 
+  // A counter strafe names a position; the app files its button by the record's id.
+  const recordIdOf = (name: string): number | undefined => {
+    const position = device.positions[name];
+    if (position === undefined || device.isStick(name)) return undefined;
+    return byPin.get(position.pin)?.id;
+  };
+
   // Only pins this device names are ever rewritten. Unidentified pins and unused
   // `pinOne: 255` slots pass through from the template exactly as they came.
   for (const [name, position] of Object.entries(device.positions)) {
@@ -348,7 +364,7 @@ export function compileProfile(profile: Profile, options: CompileOptions = {}): 
           "stick. Binding it would write over something the app owns.",
       );
     }
-    applyPosition(record, spec, actions, name, device.isStick(name), device);
+    applyPosition(record, spec, actions, name, device.isStick(name), device, recordIdOf);
   }
 
   return doc;

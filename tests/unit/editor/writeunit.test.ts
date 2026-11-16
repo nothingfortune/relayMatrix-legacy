@@ -278,6 +278,27 @@ describe("writing the layout into the units", () => {
     expect(bar()).toContain("stick inverts Y is true on the unit, false in the layout");
   });
 
+  it("warns that a right unit's pointer stick is written with X not inverted", async () => {
+    // The unit holds the keyboard stick, which keeps the template's inversion beside the key
+    // swap; the pointer has no keys to swap, so the device map writes it as not inverted.
+    const payload = structuredClone(PAYLOAD);
+    for (const profile of payload.games.flatMap((game) => game.profiles)) {
+      const stick = profile.data.positions.stick;
+      if (profile.data.profile.unit !== "right" || stick === undefined) continue;
+      stick.mode = "mouse";
+      removeKey(stick, "directions");
+      removeKey(stick, "raw");
+    }
+    mount(payload);
+    plugIn([makeUnit("left"), makeUnit("right")]);
+    await writeToUnits();
+    await vi.waitFor(() => {
+      expect(bar()).toContain("Changes the right unit's stick inversion");
+    }, WAIT);
+    expect(bar()).toContain("stick inverts X is true on the unit, false in the layout");
+    expect(bar()).not.toContain("left unit's stick inversion");
+  });
+
   it("says when the browser has no WebHID", async () => {
     Object.defineProperty(navigator, "hid", { configurable: true, value: undefined });
     await writeToUnits();

@@ -147,3 +147,9 @@ stick_directions:
   right: left
   down: down
   left: right
+# The template's stick carries invertXAxis: true, which reverses X in every mode. Keyboard
+# mode is put right by the swap above; the pointer and an Xbox stick send no keys to swap,
+# so their X is written as not inverted. A layout's own invert_x overrides this.
+stick_invert_x:
+  mouse: false
+  xbox: false

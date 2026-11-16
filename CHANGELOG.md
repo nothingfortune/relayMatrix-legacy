@@ -11,6 +11,17 @@ Every profile change, and why. `playtests.md` records what each layout felt like
   carried accepted entries for it. The check, the accepted entries in Everspace 2's
   `game.yaml`, and the styles' `acknowledge` lists that wrote them into new games are gone.
 
+### Fixed
+
+- **The right stick's X is no longer reversed in mouse and Xbox mode.** The right unit's
+  template inverts X (`invertXAxis: true`, with angle 176). The press test of 2026-11-11 had
+  already found left and right swapped in keyboard mode, and `stick_directions` fixed that
+  by swapping the keys; a pointer or Xbox stick has no keys, so it was never corrected. The
+  device map now says `stick_invert_x: {mouse: false, xbox: false}` and the compiler writes
+  those modes with X not inverted. Keyboard mode is byte for byte what it was; no committed
+  layout has a pointer or Xbox stick on the right unit, so `dist/` does not change. Inferred
+  from the press test and the app's own right-unit exports, not yet flown.
+
 ### Added
 
 - **Macros, the model.** Press one button and the game receives a list of keys. A game's
@@ -44,6 +55,16 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 - **Swap left and right.** The write bar and the press test bar swap which unit is which hand
   in `local.yaml`, both at once, for a unit named for the wrong hand.
+
+- **The rest of the stick Configurator, in YAML and the editor.** `angle`, `invert_x`,
+  `invert_y`, `angle_lock` (with `lock_zone_angle`, `lock_zone_size`), `trigger_magnitude`,
+  `hold_threshold` (with `hold_magnitude`, `hold_key`), `analog_throttle`,
+  `analog_smoothing` and `counter_strafe`, each written only where given. The Tuning section
+  shows what the stick holds now and only the settings its mode has; counter strafe is
+  marked as unsafe online. The units report now names an inversion, angle or switch the
+  app's copy holds otherwise. New lint: `stick-magnitude-order`, and
+  `stick-double-correction` for a layout's `invert_x` on a keyboard stick whose unit
+  already swaps left and right.
 
 ### Changed
 

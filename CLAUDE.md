@@ -442,8 +442,19 @@ These came from real play sessions; each one is a lint rule now.
    The rotation is absorbed by `analogSettings.angle`, which the right unit's own export
    carries as 176 against the left unit's -1 — a half turn, in degrees, written by the app
    itself. `stick_angle` and `stick_directions` exist as corrections for a unit whose
-   template does not already carry one; neither is in use, they are alternatives, and
-   `stick-double-correction` errors if both are set.
+   template does not already carry one; they are alternatives, and
+   `stick-double-correction` errors if both are set. The right unit uses `stick_directions`.
+   **The right unit's template also carries `invertXAxis: true`** (with angle 176; the
+   app's own right-unit exports, recon 2026-11-15, carry false). The press test of
+   2026-11-11 ran in keyboard mode on that template and found left and right swapped, up
+   and down right: a half turn undoes the mount, one X inversion is left, which
+   `stick_directions` puts right by swapping the keys. The pointer and an Xbox stick have
+   no keys to swap, so on the right unit they pushed right and went left. `devices/` carries
+   that as `stick_invert_x: {mouse: false, xbox: false}`: those modes are written with X not
+   inverted, keyboard mode is untouched (its swap is hand-verified), and a layout's own
+   `invert_x` overrides either. Inferred from the press test and the app's own exports, not
+   flown: `stick-double-correction` errors on a map that swaps left and right and also sets
+   `stick_invert_x.keyboard`, and warns on a layout's `invert_x` on such a stick.
    The right unit also reads a **different direction block**: see the export format rules.
 
 See `docs/guides/analog-input.md` for the standing question of how to get real analog axes
@@ -487,7 +498,21 @@ array of per-key records.
   Tuning section sets `deadzone_lower`/`deadzone_upper` (percent of 512, into
   `lowerLimit`/`upperLimit`), `threshold` (`sensitivity`, 0-25) and `cone_vertical`/
   `cone_horizontal` (1-89). The compiler writes those only where given and decompiling does
-  not emit them, so a template's tuning passes through as before. Taking a stick off keys
+  not emit them, so a template's tuning passes through as before. The rest of the app's
+  Configurator is the same kind of field, mapped in `src/lib/stick-settings.ts` (labels and
+  ranges read from the app's interface code, 2026-11-15): `angle` (-180 to 180, over the
+  device's `stick_angle`, over the template's), `invert_x`/`invert_y` (true or false
+  writes, absent keeps the template's, and for X the device's `stick_invert_x`),
+  `angle_lock` with `lock_zone_angle`/`lock_zone_size` (10-90), `trigger_magnitude` and
+  `hold_magnitude` (1-9), `hold_threshold` with `hold_key` (a key name, written as the
+  keyboard hold type only), `analog_throttle` (0-50, which the app turns off while
+  `analog_smoothing` is on, so both given is an error), and `counter_strafe` (a position
+  name, filed by its record's id -- the number in the app's `BP_<id>` log lines, which is
+  not a pin; the value going to a unit has not been captured; the app warns it might not be
+  safe for online play, and the editor marks it). The editor shows each as the stick holds it
+  now (layout, else device, else template) and only the settings the stick's mode has, as
+  the app's tabs do. Decompiling emits `invert_x` only where an export differs from
+  `stick_invert_x`, so a golden profile still rebuilds its template. Taking a stick off keys
   takes its directions off with it; each press
   of a key has "or send instead" for an Xbox button or trigger, and on the tap for scroll.
 - Key values mix `KeyboardEvent.code` strings (`KeyF`, `Digit1`, `Escape`) with legacy
@@ -511,8 +536,8 @@ array of per-key records.
   contract depends on.
   `analogSettings.angle` is in **degrees**, absolute: the right unit's export carries 176
   and the left unit's -1, which is the 180° mount rotation plus a small trim. It is only
-  overwritten when a device sets `stick_angle`, which no device currently does — the
-  templates already carry the right value.
+  overwritten when a device sets `stick_angle` (none does) or a layout sets `angle`, which
+  wins — the templates already carry the right value.
 - `profileSettings` passes through from the template, except `isSensorOn` and the
   sensitivity step, which a profile sets with `sensor:` and `dpi:`. **The Cyborg II has no
   optical sensor**: its device maps say `sensor: false`, and the editor then offers no

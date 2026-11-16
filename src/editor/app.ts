@@ -60,6 +60,8 @@ import type { UnitCheck, UnitDifference, UnitsReport } from "../lib/units.js";
 import { describeSent, expectedPresses, verdict } from "../lib/checkunit.js";
 import { keyboardBoard, keyChooser, padBoard, padChooser } from "./device-boards.js";
 import { openPicker, pickerOpen } from "./picker.js";
+import { stickTuningField } from "./stick-tuning.js";
+import type { TuningContext } from "./stick-tuning.js";
 import {
   MOUSE_BUTTON_TOKENS,
   canonicalKbm,
@@ -81,10 +83,8 @@ import {
   DEFAULT_FEATURE_DELAY,
   SLOTS,
   MAX_MOUSE_SENSITIVITY,
-  MAX_THRESHOLD,
   STICK_DIRECTIONS,
   STICK_MODE_CODES,
-  STICK_TRAVEL,
 } from "../types/azeron.js";
 import type {
   AnalogSettings,
@@ -387,7 +387,11 @@ const STICK_MODE_NAMES: Readonly<Record<string, string>> = {
  * What a stick sends: keys, an Xbox stick, or the pointer. A game whose checks require a
  * keyboard stick (Everspace 2, constraint 1) shows the others, disabled, with why.
  */
-function stickModeField(spec: PositionSpec, base?: AnalogSettings): HTMLElement {
+function stickModeField(
+  spec: PositionSpec,
+  base: AnalogSettings | undefined,
+  tuning: Omit<TuningContext, "render">,
+): HTMLElement {
   const keyboardOnly = currentGame().lintConfig.require_keyboard_stick === true;
   const current = spec.mode ?? "keyboard";
   const select = el("select", { "data-stick-mode": "select" });
@@ -445,111 +449,8 @@ function stickModeField(spec: PositionSpec, base?: AnalogSettings): HTMLElement 
       ]),
     );
   }
-  field.append(stickTuningField(spec, base, current));
+  field.append(stickTuningField(spec, base, current, { ...tuning, render }));
   return field;
-}
-
-/**
- * The stick's deadzones, threshold and cones, in the Azeron app's own terms. A field left
- * empty keeps what the stick has now (its template's value, shown as the placeholder).
- */
-function stickTuningField(
-  spec: PositionSpec,
-  base: AnalogSettings | undefined,
-  mode: string,
-): HTMLElement {
-  const cones = (base?.analogCones ?? {}) as Record<string, unknown>;
-  const number = (value: unknown): number | undefined =>
-    typeof value === "number" ? value : undefined;
-  const percent = (raw: unknown): number | undefined => {
-    const value = number(raw);
-    return value === undefined ? undefined : Math.round((value * 100) / STICK_TRAVEL);
-  };
-  type TuningField =
-    "deadzone_lower" | "deadzone_upper" | "threshold" | "cone_vertical" | "cone_horizontal";
-  const rows: {
-    field: TuningField;
-    label: string;
-    low: number;
-    high: number;
-    now: number | undefined;
-  }[] = [
-    {
-      field: "deadzone_lower",
-      label: "Lower deadzone (%)",
-      low: 0,
-      high: 99,
-      now: percent(base?.lowerLimit),
-    },
-    {
-      field: "deadzone_upper",
-      label: "Upper deadzone (%)",
-      low: 0,
-      high: 99,
-      now: percent(base?.upperLimit),
-    },
-  ];
-  // The app hides the threshold for a mouse stick, and the cones only steer keys.
-  if (mode !== "mouse") {
-    rows.push({
-      field: "threshold",
-      label: "Sensitivity threshold (0 to 25)",
-      low: 0,
-      high: MAX_THRESHOLD,
-      now: number(base?.sensitivity),
-    });
-  }
-  if (mode === "keyboard") {
-    rows.push(
-      {
-        field: "cone_vertical",
-        label: "Vertical cone (degrees)",
-        low: 1,
-        high: 89,
-        now: number(cones.verticalCone),
-      },
-      {
-        field: "cone_horizontal",
-        label: "Horizontal cone (degrees)",
-        low: 1,
-        high: 89,
-        now: number(cones.horizontalCone),
-      },
-    );
-  }
-  const tuned = rows.some((row) => spec[row.field] !== undefined);
-  const details = el("details", { class: "stick-tuning" }, [
-    el("summary", {}, [tuned ? "Tuning (changed)" : "Tuning"]),
-  ]);
-  if (tuned) details.setAttribute("open", "open");
-  const grid = el("div", { class: "tuning-grid" });
-  for (const row of rows) {
-    const input = el("input", {
-      type: "number",
-      min: String(row.low),
-      max: String(row.high),
-      step: "1",
-      placeholder: row.now === undefined ? "as it is" : String(row.now),
-      value: spec[row.field] === undefined ? "" : String(spec[row.field]),
-      "data-tuning": row.field,
-    });
-    input.addEventListener("change", () => {
-      if (input.value.trim() === "") {
-        removeKey(spec, row.field);
-      } else {
-        const value = Number(input.value);
-        if (!Number.isInteger(value) || value < row.low || value > row.high) {
-          input.value = spec[row.field] === undefined ? "" : String(spec[row.field]);
-          return;
-        }
-        spec[row.field] = value;
-      }
-      render();
-    });
-    grid.append(el("div", { class: "field" }, [el("label", {}, [row.label]), input]));
-  }
-  details.append(grid);
-  return details;
 }
 
 /** The Xbox buttons and triggers, and scroll, a key's press can send instead of an action. */
@@ -1820,15 +1721,30 @@ function renderInspector(): HTMLElement {
   if (isStick) {
     // What the stick has where the profile says nothing: its template's record.
     let base: AnalogSettings | undefined;
+    let templateInputs: ExportProfile["inputs"] = [];
     try {
       const pin = device.positions[selection.position]?.pin;
       const template = templateFor(game, profileFor(selection.slug));
       const index = profileFor(selection.slug).meta.template_profile ?? 0;
-      base = template.profiles[index]?.inputs.find((input) => input.pinOne === pin)?.analogSettings;
+      templateInputs = template.profiles[index]?.inputs ?? [];
+      base = templateInputs.find((input) => input.pinOne === pin)?.analogSettings;
     } catch {
       base = undefined;
     }
-    panel.append(stickModeField(spec, base));
+    panel.append(
+      stickModeField(spec, base, {
+        invertXByMode: device.stickInvertX,
+        swapsDirections: Object.keys(device.stickDirections).length > 0,
+        stickAngle: device.stickAngle,
+        buttons: Object.entries(device.positions)
+          .filter(([name, place]) => !device.isStick(name) && !device.unknownPins.has(place.pin))
+          .map(([name, place]) => ({
+            name,
+            label: positionLabel(name),
+            id: templateInputs.find((input) => input.pinOne === place.pin)?.id,
+          })),
+      }),
+    );
   }
   if (isStick && (spec.mode ?? "keyboard") !== "keyboard") {
     panel.append(

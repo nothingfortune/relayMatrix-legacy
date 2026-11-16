@@ -124,6 +124,29 @@ export interface PositionSpec {
   cone_vertical?: number;
   cone_horizontal?: number;
   /**
+   * The rest of the app's Configurator, each written only where given (`stick-settings.ts`).
+   * `angle`: degrees, -180 to 180, over the device's `stick_angle` and the template's.
+   * `invert_x` / `invert_y`: true or false writes it, absent keeps the template's (and, for X,
+   * the device's `stick_invert_x`). `angle_lock` with `lock_zone_angle` and `lock_zone_size`
+   * (10 to 90). `trigger_magnitude` and `hold_magnitude` (1 to 9), `hold_threshold` and
+   * `hold_key` (a key name). `analog_throttle` (0 to 50) and `analog_smoothing`.
+   * `counter_strafe`: the position whose button is the counter strafe, null for none. The
+   * app warns this might not be safe for online play.
+   */
+  angle?: number;
+  invert_x?: boolean;
+  invert_y?: boolean;
+  angle_lock?: boolean;
+  lock_zone_angle?: number;
+  lock_zone_size?: number;
+  trigger_magnitude?: number;
+  hold_threshold?: boolean;
+  hold_magnitude?: number;
+  hold_key?: string;
+  analog_throttle?: number;
+  analog_smoothing?: boolean;
+  counter_strafe?: string | null;
+  /**
    * An action id, an inline key, or -- for a direction whose keycode this repo does not
    * understand -- the token verbatim, so a build does not write 0 over it.
    */
@@ -198,6 +221,13 @@ export interface DeviceData {
    */
   stick_zero?: string;
   stick_angle?: number;
+  /**
+   * Whether the stick's X is written inverted, per mode, where the layout's own `invert_x` is
+   * silent. For a unit whose template carries an inversion that `stick_directions` already
+   * puts right in keyboard mode: the pointer and an Xbox stick send no keys to swap, so they
+   * are written as not inverted. Absent for a mode means the template's value.
+   */
+  stick_invert_x?: Partial<Record<"keyboard" | "mouse" | "xbox", boolean>>;
   /** Pins that exist in exports but whose physical key is unidentified. Never written. */
   unknown_pins?: number[];
   positions: Record<string, DevicePosition>;
