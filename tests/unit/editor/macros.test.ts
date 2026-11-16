@@ -96,6 +96,14 @@ const macroRow = (id: string): HTMLElement => {
   if (!found) throw new Error(`no macro ${id}`);
   return found;
 };
+/** An action's row on the In-game tab, by the name it shows. */
+function actionRow(label: string): HTMLElement {
+  const found = [...document.querySelectorAll<HTMLElement>(".ingame-row")].find(
+    (node) => node.querySelector(".who .rename")?.textContent === label,
+  );
+  if (!found) throw new Error(`no row for ${label}`);
+  return found;
+}
 // The caller says what it expects to find, as querySelector does.
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 const field = <T extends HTMLElement>(root: ParentNode, selector: string): T => {
@@ -358,6 +366,26 @@ describe("the Macros panel", () => {
     expect(document.querySelector(".ingame-row .who b")?.textContent).not.toBeUndefined();
     const listed = [...document.querySelectorAll(".ingame-row .who b")].map((b) => b.textContent);
     expect(listed).toContain("Quick heal");
+  });
+
+  it("offers no Delete for an action a macro types by name, and does for one nothing uses", () => {
+    mount(
+      payloadWith(
+        { quick_heal: { steps: [{ tap: { action: "reload_it" } }] } },
+        { spare: { label: "Spare", kbm: "KeyX" } },
+      ),
+    );
+    tab("In-game");
+    expect(actionRow("Spare").querySelector(".delete-action")).not.toBeNull();
+    expect(actionRow("Reload it").querySelector(".delete-action")).toBeNull();
+  });
+
+  it("offers Delete again once the macro no longer types it", () => {
+    mount(payloadWith({ quick_heal: { steps: [{ tap: { action: "reload_it" } }] } }));
+    tab("In-game");
+    expect(actionRow("Reload it").querySelector(".delete-action")).toBeNull();
+    typeInto(field<HTMLInputElement>(macroRow("quick_heal"), "[data-macro-keys]"), "H J");
+    expect(actionRow("Reload it").querySelector(".delete-action")).not.toBeNull();
   });
 
   it("undoes an add", () => {

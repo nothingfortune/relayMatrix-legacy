@@ -13,6 +13,7 @@ import { handLayout, positionLabel, unitLabel, whereLabel } from "../lib/layout.
 import { applyMode } from "../lib/stickmodes.js";
 import type { StickModeSet } from "../lib/stickmodes.js";
 import { patchSetPedals } from "../lib/setsfile.js";
+import { macrosTyping } from "../lib/macros.js";
 import type { MacroDef } from "../lib/macros.js";
 import {
   addMacro,
@@ -5985,7 +5986,12 @@ function actionInUse(game: EditorGame, id: string): boolean {
  */
 function canDeleteAction(game: EditorGame, id: string): boolean {
   // A macro's action goes with the macro: deleting it alone would leave the macro with none.
-  return !isMacroAction(id) && isRemovable(game, id);
+  // So does one a macro types by name: it would be left pointing at an action that is gone.
+  return (
+    !isMacroAction(id) &&
+    macrosTyping({ macros: currentMacros(game) }, id).length === 0 &&
+    isRemovable(game, id)
+  );
 }
 
 /** Whether an action is the game's own to take out, which a macro's action is when it is on no key. */

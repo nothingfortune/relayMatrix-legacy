@@ -301,6 +301,22 @@ export function resolveMacro(
   return { ops, problems };
 }
 
+/**
+ * The macros whose steps type an action by name (`tap`, `down` or `up` of `{action: id}`),
+ * by id. Deleting that action would leave each of them pointing at nothing.
+ */
+export function macrosTyping(data: MacrosData, id: string): string[] {
+  return Object.entries(data.macros)
+    .filter(([, def]) =>
+      def.steps.some((step) =>
+        [step.tap, step.down, step.up].some(
+          (target) => typeof target === "object" && target.action === id,
+        ),
+      ),
+    )
+    .map(([name]) => name);
+}
+
 /** Which kind of button starts a macro. */
 export type TriggerDevice = "azeron" | "keyboard" | "pad";
 

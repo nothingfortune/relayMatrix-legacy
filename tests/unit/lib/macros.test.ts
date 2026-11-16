@@ -11,6 +11,7 @@ import {
   dumpMacros,
   MACRO_LIMITS,
   MacroError,
+  macrosTyping,
   parseMacros,
   resolveMacro,
   triggersOf,
@@ -478,5 +479,30 @@ describe("trigger keys for a keypad", () => {
     expect(wireTrigger(given, "quick")).toBeNull();
     expect(given.quick?.key).toBe("F13");
     expect(wireTrigger(given, "missing")).toBeNull();
+  });
+});
+
+describe("macrosTyping", () => {
+  const data = parseMacros(
+    {
+      macros: {
+        a: [{ action: "reload" }, "KeyB"],
+        b: [{ down: { action: "crouch" } }, "KeyB", { up: { action: "crouch" } }],
+        c: ["KeyA", "KeyB"],
+        d: [{ tap: { action: "reload" } }],
+      },
+    },
+    "macros.yaml",
+  );
+
+  it("names every macro that types an action, by tap, down or up", () => {
+    expect(macrosTyping(data, "reload")).toEqual(["a", "d"]);
+    expect(macrosTyping(data, "crouch")).toEqual(["b"]);
+  });
+
+  it("names none for an action no macro types, and ignores a raw key of the same name", () => {
+    expect(macrosTyping(data, "fire")).toEqual([]);
+    expect(macrosTyping(data, "KeyB")).toEqual([]);
+    expect(macrosTyping({ macros: {} }, "reload")).toEqual([]);
   });
 });
