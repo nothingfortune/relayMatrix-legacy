@@ -155,7 +155,7 @@ export function buildAll(games: readonly Game[], check = false): BuildResult {
  * A game's macros compiled into dist/<game>/macros.json, which the helper runs. A game with
  * none has no file; one left behind by macros since deleted is stale (checked) or removed.
  */
-function buildMacroProgram(
+export function buildMacroProgram(
   game: Game,
   check: boolean,
   built: BuiltProfile[],

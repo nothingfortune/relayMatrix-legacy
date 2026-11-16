@@ -102,6 +102,13 @@ sed -i 's/^actions:$/actions:\n  quick_heal: {label: Quick heal, key: F13}/' "$h
 printf 'macros:\n  quick_heal: [KeyH, KeyJ]\n' > "$helper_repo/games/SpaceSims/everspace/macros.yaml"
 says "helper start refuses a program that was not built" "macros.json is missing. Run azeron build" \
   env AZERON_LOGS="$helper_logs" AZERON_DATA="$helper_repo" ./bin/azeron helper start everspace --yes
+# The advice that refusal gives has to work: azeron build writes macros.json, build --check
+# agrees with it, and a stale one is caught.
+says "build writes the macro program the helper asks for" "wrote +.*macros.json"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace
+check "build --check agrees once macros.json is built"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace --check
+printf ' ' >> "$helper_repo/dist/SpaceSims/everspace/macros.json"
+says "build --check sees a stale macros.json" "stale: .*macros.json does not match"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace --check
+check_fails "build --check exits non-zero for a stale macros.json"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace --check
 rm -rf "$helper_logs" "$helper_repo"
 
 # The editor server and its stop command, on a port nothing else is using. The port is one the

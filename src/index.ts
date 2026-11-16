@@ -66,6 +66,7 @@ import {
 } from "./lib/serve.js";
 import {
   buildAll,
+  buildMacroProgram,
   createGame,
   startGame,
   startLayout,
@@ -90,7 +91,7 @@ import {
   profilePathFor,
   templatePathFor,
 } from "./lib/tasks.js";
-import type { SaveCheck } from "./lib/tasks.js";
+import type { BuiltProfile, SaveCheck } from "./lib/tasks.js";
 import type { UnitsReport } from "./lib/units.js";
 import type { ExportDocument } from "./types/azeron.js";
 import { defaultsReport } from "./lib/defaults.js";
@@ -170,8 +171,32 @@ function cmdBuild(selector: string | undefined, check: boolean): number {
         out(`           -> ${target}`);
       }
     }
+    failures += buildMacros(game, check);
   }
   return failures > 0 ? 1 : 0;
+}
+
+/**
+ * A game's macros, compiled or checked the way its profiles are: written to
+ * dist/<game>/macros.json, or reported stale under --check. Returns how many failed.
+ */
+function buildMacros(game: Game, check: boolean): number {
+  const built: BuiltProfile[] = [];
+  const errors: string[] = [];
+  buildMacroProgram(game, check, built, errors);
+  for (const message of errors) {
+    if (message.startsWith("stale:")) out(message);
+    else
+      process.stderr.write(`error: ${message}
+`);
+  }
+  if (!check) {
+    for (const entry of built) {
+      const gone = !existsSync(repoPath(entry.output));
+      out(`${gone ? "removed  " : entry.changed ? "wrote    " : "unchanged"} ${entry.output}`);
+    }
+  }
+  return errors.length;
 }
 
 function report(label: string, result: LintResult, strict: boolean, showAcked: boolean): number {
