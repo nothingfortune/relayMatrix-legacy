@@ -5,7 +5,9 @@
  * What it guarantees, so a macro cannot leave the keyboard stuck or run away:
  * - a macro runs once per press, however long the button is held, unless it repeats;
  * - a repeating macro runs again while the button is held, and stops cleanly on release;
- * - when a run ends, for any reason, every key it put down is lifted.
+ * - when a run ends, for any reason, every key it put down is lifted;
+ * - a key two macros both hold goes down once and comes up when the last lets go, and a run
+ *   never lifts a key it did not press.
  *
  * Node-free.
  */
@@ -41,6 +43,8 @@ interface Run {
 export class MacroRunner {
   private readonly byTrigger = new Map<string, CompiledMacro>();
   private readonly running = new Map<string, Run>();
+  /** How many runs hold each key, so one macro cannot lift a key another still needs. */
+  private readonly holders = new Map<string, number>();
 
   constructor(
     program: CompiledMacros,
@@ -105,17 +109,38 @@ export class MacroRunner {
           if (op.op === "wait") {
             await this.io.sleep(op.ms);
           } else if (op.op === "down") {
-            down.set(nameOf(op.input), op.input);
-            this.io.down(op.input);
-          } else {
-            down.delete(nameOf(op.input));
-            this.io.up(op.input);
+            if (!down.has(nameOf(op.input))) {
+              down.set(nameOf(op.input), op.input);
+              this.holdKey(op.input);
+            }
+          } else if (down.delete(nameOf(op.input))) {
+            this.liftKey(op.input);
           }
         }
       } while (macro.repeat && run.held && !run.stopped);
     } finally {
       // Whatever ended the run, nothing it pressed stays pressed.
-      for (const input of [...down.values()].reverse()) this.io.up(input);
+      for (const input of [...down.values()].reverse()) this.liftKey(input);
     }
+  }
+
+  /** This run takes hold of a key: it goes down only if no other run already holds it. */
+  private holdKey(input: MacroInput): void {
+    const name = nameOf(input);
+    const count = this.holders.get(name) ?? 0;
+    this.holders.set(name, count + 1);
+    if (count === 0) this.io.down(input);
+  }
+
+  /** This run lets go of a key: it comes up only when no other run still holds it. */
+  private liftKey(input: MacroInput): void {
+    const name = nameOf(input);
+    const count = (this.holders.get(name) ?? 0) - 1;
+    if (count > 0) {
+      this.holders.set(name, count);
+      return;
+    }
+    this.holders.delete(name);
+    this.io.up(input);
   }
 }

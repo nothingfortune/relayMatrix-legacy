@@ -342,6 +342,15 @@ export function triggersOf(spec: ActionSpec | undefined): {
   return { triggers, problems };
 }
 
+/**
+ * Where a button comes from. A keypad's trigger key and a keyboard key are the same physical
+ * key to the helper's hook, which cannot tell them apart, so they share one name: F13 on the
+ * keypad and F13 on the keyboard collide. A pad button is its own.
+ */
+function sourceOf(trigger: MacroTrigger): string {
+  return trigger.device === "pad" ? `pad:${trigger.input}` : `key:${trigger.input}`;
+}
+
 /** One macro as the helper runs it. */
 export interface CompiledMacro {
   action: string;
@@ -389,7 +398,7 @@ export function compileMacros(
     if (triggerProblems.length > 0 || resolved.problems.length > 0) continue;
     let clash = false;
     for (const trigger of triggers) {
-      const other = owners.get(`${trigger.device}:${trigger.input}`);
+      const other = owners.get(sourceOf(trigger));
       if (other !== undefined) {
         problems.push({
           macro: id,
@@ -400,7 +409,7 @@ export function compileMacros(
       }
     }
     if (clash) continue;
-    for (const trigger of triggers) owners.set(`${trigger.device}:${trigger.input}`, id);
+    for (const trigger of triggers) owners.set(sourceOf(trigger), id);
     found.push({
       action: id,
       label: spec?.label ?? id,

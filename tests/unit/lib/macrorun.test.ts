@@ -256,3 +256,123 @@ describe("MacroRunner", () => {
     expect(log).toContain("down KeyB");
   });
 });
+
+describe("MacroRunner: keys shared between macros that run together", () => {
+  /** A clock the test turns by hand, so two macros can be made to overlap exactly. */
+  function manual(): { io: MacroIo; log: string[]; gates: (() => void)[] } {
+    const log: string[] = [];
+    const gates: (() => void)[] = [];
+    const name = (input: MacroInput): string => ("key" in input ? input.key : input.mouse);
+    return {
+      log,
+      gates,
+      io: {
+        down: (input) => log.push(`down ${name(input)}`),
+        up: (input) => log.push(`up ${name(input)}`),
+        sleep: () =>
+          new Promise<void>((resolve) => {
+            gates.push(resolve);
+          }),
+      },
+    };
+  }
+  const flush = (): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+  it("keeps a key down until every macro holding it has let go", async () => {
+    const { io, log, gates } = manual();
+    const shift = key("ShiftLeft");
+    const runner = new MacroRunner(
+      program({
+        a: {
+          on: [["azeron", "F13"]],
+          ops: [
+            { op: "down", input: shift },
+            { op: "wait", ms: 1000 },
+            ...tap("KeyA", 5),
+            { op: "up", input: shift },
+          ],
+        },
+        b: {
+          on: [["azeron", "F14"]],
+          ops: [{ op: "down", input: shift }, ...tap("KeyB", 5), { op: "up", input: shift }],
+        },
+      }),
+      io,
+    );
+    runner.press("azeron", "F13"); // holds Shift and waits
+    runner.press("azeron", "F14"); // also holds Shift, then taps B
+    gates[1]?.(); // B's hold of B ends: B lets go of Shift, which A still holds
+    await flush();
+    expect(log).toEqual(["down ShiftLeft", "down KeyB", "up KeyB"]);
+    gates[0]?.(); // A carries on: its A is typed with Shift still down
+    await flush();
+    gates[2]?.();
+    await runner.idle();
+    expect(log).toEqual([
+      "down ShiftLeft",
+      "down KeyB",
+      "up KeyB",
+      "down KeyA",
+      "up KeyA",
+      "up ShiftLeft",
+    ]);
+  });
+
+  it("lifts a key only once, when the last macro holding it stops", async () => {
+    const { io, log, gates } = manual();
+    const ops: MacroOp[] = [
+      { op: "down", input: key("KeyW") },
+      { op: "wait", ms: 100 },
+    ];
+    const runner = new MacroRunner(
+      program({
+        a: { on: [["azeron", "F13"]], ops },
+        b: { on: [["azeron", "F14"]], ops },
+      }),
+      io,
+    );
+    runner.press("azeron", "F13");
+    runner.press("azeron", "F14");
+    expect(log).toEqual(["down KeyW"]);
+    gates[0]?.();
+    await flush();
+    expect(log).toEqual(["down KeyW"]); // A has ended; B still holds W
+    gates[1]?.();
+    await runner.idle();
+    expect(log).toEqual(["down KeyW", "up KeyW"]);
+  });
+
+  it("never lifts a key it did not press", async () => {
+    const { io, log, gates } = manual();
+    const runner = new MacroRunner(
+      program({
+        a: {
+          on: [["azeron", "F13"]],
+          ops: [
+            { op: "down", input: key("KeyW") },
+            { op: "wait", ms: 100 },
+          ],
+        },
+        b: {
+          on: [["azeron", "F14"]],
+          ops: [
+            { op: "up", input: key("KeyW") },
+            { op: "wait", ms: 10 },
+          ],
+        },
+      }),
+      io,
+    );
+    runner.press("azeron", "F13");
+    runner.press("azeron", "F14"); // an up with no down of its own does nothing
+    gates[1]?.();
+    await flush();
+    expect(log).toEqual(["down KeyW"]);
+    gates[0]?.();
+    await runner.idle();
+    expect(log).toEqual(["down KeyW", "up KeyW"]);
+  });
+});

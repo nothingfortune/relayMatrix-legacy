@@ -372,6 +372,26 @@ describe("compileMacros", () => {
     ]);
   });
 
+  it("refuses a keypad trigger and a keyboard key that are the same physical key", () => {
+    // The helper's hook cannot tell a keypad's F13 from a keyboard's F13.
+    const clash = { ...actions, twin: { label: "Twin", kbm: "F13" } };
+    const both = parseMacros({ macros: { quick: ["KeyB"], twin: ["KeyB"] } }, "macros.yaml");
+    const { program, problems } = compileMacros(both, clash);
+    expect(program.macros.map((macro) => macro.action)).toEqual(["quick"]);
+    expect(problems).toEqual([
+      { macro: "twin", rule: "macro-trigger", message: "F13 also starts 'quick'" },
+    ]);
+  });
+
+  it("lets a pad button share a name with a key, since they are different buttons", () => {
+    const ok = {
+      one: { label: "One", pad: "A" },
+      two: { label: "Two", kbm: "KeyA" },
+    };
+    const both = parseMacros({ macros: { one: ["KeyB"], two: ["KeyB"] } }, "macros.yaml");
+    expect(compileMacros(both, { ...ACTIONS, ...ok }).problems).toEqual([]);
+  });
+
   it("refuses two macros started by the same button", () => {
     const twin = { ...actions, twin: { label: "Twin", key: "F13" } };
     const twice = parseMacros({ macros: { quick: ["KeyB"], twin: ["KeyB"] } }, "macros.yaml");
