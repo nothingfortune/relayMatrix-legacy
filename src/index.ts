@@ -92,6 +92,7 @@ import {
 import type { SaveCheck } from "./lib/tasks.js";
 import type { UnitsReport } from "./lib/units.js";
 import type { ExportDocument } from "./types/azeron.js";
+import { defaultsReport } from "./lib/defaults.js";
 import { ERROR, WARNING, formatFinding, lintGame, lintGenre } from "./lib/lint.js";
 import type { LintResult } from "./lib/lint.js";
 import { Game, Genre } from "./lib/model.js";
@@ -202,6 +203,19 @@ function cmdLint(selector: string | undefined, strict: boolean, showAcked: boole
     worst |= report(game.slug, lintGame(game), strict, showAcked);
   }
   return worst;
+}
+
+/** `azeron defaults`: a genre's Xbox pad and how it lays out the pair, with nothing started. */
+function cmdDefaults(genre: string | undefined, style: string | undefined): number {
+  const inputs = Genre.discover().map((entry) => ({
+    genre: entry.name,
+    actions: entry.actions.actions,
+    defaults: entry.config.positions,
+    styles: entry.styles,
+    modes: entry.stickModes,
+  }));
+  out(defaultsReport(inputs, genre, style));
+  return 0;
 }
 
 function cmdRoundtrip(selector: string | undefined): number {
@@ -1510,6 +1524,8 @@ function usage(): void {
   ingame [game] --candidate pedal_axis=NAME [--set S]
                                   write a name to try by hand, marked UNTESTED, for a pedal
                                   axis the game's own controls screen will not bind
+  defaults [genre] [--style S]    a genre's Xbox pad, control by control, and how it lays
+                                  out the pair; with no genre, what each offers
   editor [--out PATH]             the editor as one self-contained HTML file
   serve [--port N] [--host H] [--open]
                                   the same editor, able to save back into the repo; it
@@ -1611,6 +1627,8 @@ export function main(argv: string[]): number {
       return cmdBuild(positionals[0], values.check);
     case "lint":
       return cmdLint(positionals[0], values.strict, values["show-acknowledged"]);
+    case "defaults":
+      return cmdDefaults(positionals[0], values.style);
     case "roundtrip":
       return cmdRoundtrip(positionals[0]);
     case "bindings":

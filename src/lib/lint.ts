@@ -7,6 +7,8 @@
 
 import { DEFAULT_FEATURE_DELAY, SLOTS, STICK_MODE_CODES, TYPE_MOUSE } from "../types/azeron.js";
 import { canonicalKbm, isPadControl, kbmLabel, padLabel, parseKbm } from "./controls.js";
+import { SINGLE_UNIT, styleDefaults } from "./defaults.js";
+import type { DefaultsInput } from "./defaults.js";
 import { resolveSlot } from "./binding.js";
 import * as keys from "./keys.js";
 import type { Slot } from "../types/azeron.js";
@@ -1052,5 +1054,72 @@ export function lintGenre(genre: Genre): LintResult {
   const result = lintProfiles(genre.actions, [genre.defaultProfile()], genre.lintConfig);
   // A genre's vocabulary has no keys; each game supplies its own. Its default layout says
   // where an action goes, not what carries it, so an action with no key is not a finding.
-  return { ...result, live: result.live.filter((f) => f.rule !== "action-sends-nothing") };
+  const live = result.live.filter((f) => f.rule !== "action-sends-nothing");
+  const input: DefaultsInput = {
+    genre: genre.name,
+    actions: genre.actions.actions,
+    defaults: genre.config.positions,
+    styles: genre.styles,
+    modes: genre.stickModes,
+  };
+  return { ...result, live: [...live, ...lintGenrePad(input.actions), ...lintGenreStyles(input)] };
+}
+
+/** The two controls a pad has for menus; a menu anywhere else is a button a fight presses. */
+const PAD_MENU_CONTROLS: readonly string[] = ["View", "Menu"];
+
+/**
+ * The genre's Xbox pad, `xbox:` in its vocabulary: every game inherits it, and the controller
+ * style places the pair by it. A control that is not on a pad, two actions on one control, and
+ * a menu on a button a fight presses are mistakes here, before any game copies them.
+ */
+export function lintGenrePad(actions: Readonly<Record<string, ActionSpec>>): Finding[] {
+  const findings: Finding[] = [];
+  const byControl = new Map<string, string[]>();
+  for (const [id, spec] of Object.entries(actions)) {
+    // Read as found: a hand edit can leave a number or a typo.
+    const control: unknown = spec.xbox;
+    if (control === undefined) continue;
+    if (!isPadControl(control) || typeof control !== "string") {
+      findings.push({
+        level: ERROR,
+        rule: "xbox-unknown",
+        message: `${id}'s xbox control ${JSON.stringify(control)} is not on an Xbox pad.`,
+      });
+      continue;
+    }
+    byControl.set(control, [...(byControl.get(control) ?? []), id]);
+    if ((spec.tags ?? []).includes("menu") && !PAD_MENU_CONTROLS.includes(control)) {
+      findings.push({
+        level: WARNING,
+        rule: "xbox-menu-on-play",
+        key: control,
+        message:
+          `${id} is a menu, on ${padLabel(control)}, a button play presses. ` +
+          "Menus belong on View and Menu.",
+      });
+    }
+  }
+  for (const [control, ids] of byControl) {
+    if (ids.length < 2) continue;
+    findings.push({
+      level: ERROR,
+      rule: "xbox-collision",
+      key: control,
+      message: `${padLabel(control)} is the xbox control of ${[...ids].sort().join(" and ")}.`,
+    });
+  }
+  return findings;
+}
+
+/** Every style of the genre must build, as a new game builds it. */
+export function lintGenreStyles(input: DefaultsInput): Finding[] {
+  return Object.keys(input.styles)
+    .filter((name) => name !== SINGLE_UNIT)
+    .flatMap((name): Finding[] => {
+      const error = styleDefaults(input, name).error;
+      return error === null
+        ? []
+        : [{ level: ERROR, rule: "style-unbuildable", key: name, message: `${name}: ${error}` }];
+    });
 }

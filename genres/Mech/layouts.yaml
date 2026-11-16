@@ -1,5 +1,8 @@
 # What a new mech game starts with: a pair of units, in one of two styles. See
 # genres/FPS/layouts.yaml for what each part means.
+#
+# The pad's own mapping is the `xbox:` column of actions.yaml (`azeron defaults Mech`),
+# which has a control for everything but the two weapon bay swaps; the keys below carry them.
 controller:
   label: Like a controller
   note: >-
