@@ -96,6 +96,7 @@ output, so `npm run build` first:
 | `azeron ingame [game] --candidate axis=NAME`        | write a hand-written pedal name (a candidate)                                  |
 | `azeron serve [--port N] [--host H] [--open]`       | the editor, able to save back into the repo; `--open` starts Chrome or Edge    |
 | `azeron stop [--port N]`                            | stop the editor server on that port (default 4173)                             |
+| `azeron helper start [game] [--yes]`                | type a game's macros from a Windows process; `stop`, `status`                  |
 | `azeron editor`                                     | the side-by-side editor, one self-contained HTML                               |
 | `azeron probe [--device D]`                         | the press test's profiles as files; the test runs from the editor's Press test |
 | `azeron new <name> --genre G [--units left,right]`  | a game with no export; `--style controller                                     | keyboard`, `--pedals D` |
@@ -262,6 +263,16 @@ The editor's Macros panel (`src/editor/macros-panel.ts`, rules in `macros-model.
 tab: `macrosPart()` saves `macros.yaml` (`patchMacro` in `macros-file.ts` keeps its comments) after the
 actions. A macro's action is a trigger, never a game key: `wire()` gives it `wireTrigger`, and
 `useGameKeys`, `usualBindings` and `canDeleteAction` skip it.
+
+**The helper** (`azeron helper start | stop | status`, `helper*.ts`) is the Windows half: PowerShell +
+C# (`helper-script.ts`, text; a keyboard hook, XInput, `SendInput` with scan codes from
+`helper-keys.ts`) behind a line-JSON protocol (`helper.ts`, `HelperSession`: the runner is
+TypeScript and the process is a thin bridge). A game opts in with `macros: {helper: true}` in
+`game.yaml` and the anti-cheat warning needs `--yes`. Panic key Ctrl+Alt+Pause. `stop`/`status`
+use `logs/helper.json` and `helper.stop`, never a pid. **Never run the real helper from a test or
+an agent**: it swallows keystrokes and types into the focused window; tests use fakes, and the
+script is only parsed and compiled (`helper-script.test.ts`). The C# must stay C# 5. See
+`docs/guides/macro-helper.md`.
 
 **Pedals are a modifier on the stick mode, and part of the layout.** Rudder pedals carry
 yaw, so a stick that still sends it duplicates them. `stick-modes.yaml` says which axes

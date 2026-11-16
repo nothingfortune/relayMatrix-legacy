@@ -48,6 +48,7 @@ import { checkFileName } from "./lib/scaffold.js";
 import { addActions, patchActionBindings, removeActions } from "./lib/actionfile.js";
 import { openInChromium } from "./lib/browser.js";
 import { isWsl, setLocalGamePath } from "./lib/machine.js";
+import { askOnTerminal, helperCommand } from "./lib/helper-cli.js";
 import type { BindingChange } from "./lib/actionfile.js";
 import {
   CONTENT_TYPES,
@@ -1159,6 +1160,36 @@ function cmdServe(port: number, host: string, open = false): number {
   return 0;
 }
 
+/** `azeron helper ...`: the refusals answer at once, a started helper holds the process. */
+function cmdHelper(sub: string | undefined, selector: string | undefined, yes: boolean): number {
+  void helperCommand(
+    sub,
+    selector,
+    { yes },
+    {
+      out,
+      fail: (line) =>
+        process.stderr.write(`${line}
+`),
+      games,
+      host: { platform: process.platform, wsl: isWsl() },
+      interactive: process.stdin.isTTY,
+      ask: askOnTerminal,
+      signals: ["SIGINT", "SIGTERM"],
+    },
+  ).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error: unknown) => {
+      process.stderr.write(`error: ${messageOf(error)}
+`);
+      process.exitCode = 1;
+    },
+  );
+  return 0;
+}
+
 /** Stop the editor server on `port`. The exit code is set once the server has answered. */
 function cmdStop(port: number, host: string | undefined): number {
   void stopServer(port, host === undefined ? {} : { hosts: [host] }).then((result) => {
@@ -1518,6 +1549,10 @@ function usage(): void {
   stop [--port N] [--host H]      stop the editor server on that port (default 4173), the one
                                   serve started; looks on 127.0.0.1 and ::1 unless --host
                                   names where it was started; says so when nothing is there
+  helper start [game] [--yes]     type a game's macros from a Windows process: it swallows the
+                                  buttons that start them; needs macros: {helper: true} in the
+                                  game's game.yaml; Ctrl-C or Ctrl+Alt+Pause stops it
+  helper stop | status            end a running helper from another terminal / say if one runs
   probe [--device D]              the press test's profiles, as files; the test itself
                                   runs from the editor's Press test tab
   new <name> --genre G [--units left,right] [--set S] [--game SLUG]
@@ -1634,6 +1669,8 @@ export function main(argv: string[]): number {
       );
     case "stop":
       return cmdStop(wholeNumber("--port", values.port ?? "4173"), values.host);
+    case "helper":
+      return cmdHelper(positionals[0], positionals[1], values.yes);
     case "editor":
       return cmdEditor(values.out ?? join(dataDirs.dist, "editor.html"));
     case "probe": {
