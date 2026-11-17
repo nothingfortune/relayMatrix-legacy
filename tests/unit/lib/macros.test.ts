@@ -312,6 +312,21 @@ describe("resolveMacro", () => {
     ]);
     expect(resolveMacro(def([{ tap: "KeyA" }], { repeat: true }), ACTIONS).problems).toEqual([]);
   });
+
+  it("puts the gap between one pass and the next when a repeating macro ends and starts on a tap", () => {
+    const waits = (ops: { op: string; ms?: number }[]): (number | undefined)[] =>
+      ops.filter((op) => op.op === "wait").map((op) => op.ms);
+    const once = resolveMacro(def([{ tap: "KeyA" }], { gap: 200 }), ACTIONS);
+    const looped = resolveMacro(def([{ tap: "KeyA" }], { gap: 200, repeat: true }), ACTIONS);
+    expect(waits(once.ops)).toEqual([30]);
+    expect(waits(looped.ops)).toEqual([30, 200]);
+    // Ending on a hold or a wait, a pass needs no extra pause.
+    const wait = resolveMacro(
+      def([{ tap: "KeyA" }, { wait: 50 }], { gap: 200, repeat: true }),
+      ACTIONS,
+    );
+    expect(waits(wait.ops)).toEqual([30, 50]);
+  });
 });
 
 describe("triggersOf: the buttons that start a macro", () => {

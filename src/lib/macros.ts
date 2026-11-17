@@ -283,8 +283,9 @@ export function resolveMacro(
     }
     waited += hold;
     ops.push(...tapDowns, { op: "wait", ms: hold }, ...tapUps);
-    // A pause before the next key, when the next step is a key too: the game reads each.
-    const next = def.steps[index + 1];
+    // A pause before the next key, when the next step is a key too: the game reads each. A
+    // repeating macro's last step is followed by its first, so a pass ends with the pause too.
+    const next = def.steps[index + 1] ?? (def.repeat === true ? def.steps[0] : undefined);
     if (next?.tap !== undefined && gap > 0) {
       waited += gap;
       ops.push({ op: "wait", ms: gap });

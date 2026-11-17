@@ -100,8 +100,9 @@ describe("a game with macros", () => {
         { device: "pad", input: "RB" },
       ],
     });
-    // Two taps (down, wait, up each) and the wait between them.
-    expect(program.macros[0]?.ops).toHaveLength(7);
+    // Two taps (down, wait, up each), the wait between them, and the gap that closes a
+    // repeating pass, since it ends and starts on a tap.
+    expect(program.macros[0]?.ops).toHaveLength(8);
     expect(result.built.some((entry) => entry.output.endsWith("macros.json"))).toBe(true);
   });
 
