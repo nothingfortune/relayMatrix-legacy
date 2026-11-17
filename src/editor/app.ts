@@ -6050,14 +6050,20 @@ function macrosHost(game: EditorGame): MacrosHost {
       return null;
     },
     remove(id) {
+      // Another macro that types this one by name still needs its action.
+      const typedBy = macrosTyping({ macros }, id).filter((name) => name !== id);
       const { actionKept } = removeMacro(
         editableActions(),
         editableMacros(),
         id,
-        isRemovable(game, id),
+        isRemovable(game, id) && typedBy.length === 0,
       );
       if (playerCapture?.id === id) playerCapture = null;
-      saveNote = actionKept ? "Removed. The action is still on a key." : null;
+      saveNote = actionKept
+        ? typedBy.length > 0
+          ? `Removed. The action stays: ${typedBy.join(", ")} types it.`
+          : "Removed. The action is still on a key."
+        : null;
       render();
     },
     redraw: render,

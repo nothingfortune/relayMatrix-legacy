@@ -388,6 +388,29 @@ describe("the Macros panel", () => {
     expect(actionRow("Reload it").querySelector(".delete-action")).not.toBeNull();
   });
 
+  it("keeps the action of a macro another macro types by name, and says why", async () => {
+    const calls = served();
+    mount(
+      payloadWith(
+        {
+          quick_heal: { steps: [{ tap: { action: "second" } }] },
+          second: { steps: [{ tap: "KeyA" }] },
+        },
+        { second: { label: "Second", key: "F14" } },
+      ),
+    );
+    tab("In-game");
+    field<HTMLButtonElement>(macroRow("second"), "[data-macro-remove]").click();
+    expect(rows()).toHaveLength(1);
+    expect(document.body.textContent).toContain("The action stays: quick_heal types it.");
+    saveButton()?.click();
+    await vi.waitFor(() => {
+      expect(calls.some((call) => call.path === "/api/save")).toBe(true);
+    });
+    const removed = calls.find((call) => call.path === "/api/actions")?.body.remove;
+    expect(removed ?? []).not.toContain("second");
+  });
+
   it("undoes an add", () => {
     served();
     mount();
