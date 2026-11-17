@@ -460,6 +460,13 @@ describe("trigger keys for a keypad", () => {
     expect(freeTrigger({ a: { key: "F13" }, b: { key: "F14" } })).toBe("F15");
   });
 
+  it("counts a keyboard key an action is on as taken, since the helper hears both alike", () => {
+    expect(freeTrigger({ a: { kbm: "F13" } })).toBe("F14");
+    expect(freeTrigger({ a: { kbm: "F13" }, b: { key: "F14" } })).toBe("F15");
+    // A chord is not a trigger key, so it holds nothing.
+    expect(freeTrigger({ a: { kbm: "ControlLeft+F13" } })).toBe("F13");
+  });
+
   it("counts only actions live together, and a modifier-held key as taken", () => {
     const live = { a: { key: "F13", mode: "ship" }, b: { key: "F14", meta: "F15" } };
     expect(freeTrigger(live, (other) => other.mode !== "ship")).toBe("F13");

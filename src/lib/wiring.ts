@@ -137,7 +137,9 @@ export function freeTrigger(
   const taken = new Set<string>();
   for (const spec of Object.values(actions)) {
     if (!live(spec)) continue;
-    for (const value of [spec.key, spec.meta]) {
+    // A macro bound to a keyboard key (`kbm`) is heard on the same key as a keypad's, so it
+    // holds that trigger too.
+    for (const value of [spec.key, spec.meta, spec.kbm]) {
       if (typeof value === "string") taken.add(value);
     }
   }
