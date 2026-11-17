@@ -163,8 +163,13 @@ export interface ProbeResult {
    * identity map means the unit matches the software's left-handed assumption.
    */
   stick: Partial<Record<StickDirection, StickDirection>>;
-  /** The `invertXAxis` the probe was written with, from `ProbeProfile.invertXWritten`. */
-  invertXWritten?: boolean;
+  /**
+   * The `invertXAxis` the probe on the unit was written with. Absent: the probe is taken to be
+   * the one built now (`ProbeProfile.invertXWritten`, the device's own fact). `null`: it is not
+   * known -- the page could not read it off the unit -- so a reversed reading is reported and
+   * no X change is saved, because what it was judged against might be the wrong value.
+   */
+  invertXWritten?: boolean | null;
 }
 
 /**
@@ -198,15 +203,18 @@ export function deviceChanges(before: DeviceData, after: DeviceData): string[] {
       .map(([from, to]) => `${from} reads as ${to}`);
     changes.push(`stick: ${shown.length > 0 ? shown.join(", ") : "every direction as itself"}`);
   }
-  const invert = (data: DeviceData): string => JSON.stringify(data.stick_invert_x ?? null);
+  const invert = (data: DeviceData): string =>
+    JSON.stringify(normalizeInvertX(data.stick_invert_x, data.device));
   if (invert(before) !== invert(after)) {
     const shown = (data: DeviceData): string => {
-      const held = normalizeInvertX(data.stick_invert_x, data.device);
-      const values = new Set(Object.values(held));
-      if (values.size === 0) return "as the template has it";
-      if (values.size === 1) return values.has(true) ? "on" : "off";
-      return Object.entries(held)
-        .map(([mode, value]) => `${mode} ${value ? "on" : "off"}`)
+      const value = data.stick_invert_x;
+      const word = (held: boolean | undefined): string =>
+        held === undefined ? "as the template has it" : held ? "on" : "off";
+      if (value === undefined || typeof value === "boolean") return word(value);
+      // A map says each mode: a line that read "off → off" hid the mode that changed.
+      const held = normalizeInvertX(value, data.device);
+      return (["keyboard", "mouse", "xbox"] as const)
+        .map((mode) => `${mode} ${word(held[mode])}`)
         .join(", ");
     };
     changes.push(`stick Invert X: ${shown(before)} → ${shown(after)}`);
@@ -274,7 +282,7 @@ export function deviceFromProbe(assumed: DeviceData, result: ProbeResult): Devic
   // The probe was written with the compiler's X for this unit, so what it read is the unit's
   // own: a left-right swap is the X inversion being wrong, never a key swap to lay over it.
   const fact = probeInvertX(assumed);
-  const written = result.invertXWritten ?? fact;
+  const written = result.invertXWritten === undefined ? fact : result.invertXWritten;
   const reversed = readsReversed(result);
 
   // Verified means every position was pressed. A partial capture does not earn it, and
@@ -285,9 +293,15 @@ export function deviceFromProbe(assumed: DeviceData, result: ProbeResult): Devic
     unknown_pins: stillUnknown,
     verified: unseen === 0 || assumed.verified === true,
   };
-  if (reversed && written !== undefined) {
-    next.stick_invert_x = !written;
-    removeKey(next, "stick_directions");
+  if (reversed && fact !== undefined) {
+    // Only a unit that has the fact is answered with it, and only when what its probe was
+    // written with is known: otherwise the reading cannot be judged and nothing changes.
+    if (written !== null && written !== undefined) {
+      const held = assumed.stick_invert_x;
+      // One mode was measured, so one mode flips: a per-mode map keeps its other entries.
+      next.stick_invert_x = typeof held === "object" ? { ...held, keyboard: !written } : !written;
+      removeKey(next, "stick_directions");
+    }
   } else if (!identity && fact === undefined) {
     next.stick_directions = { ...result.stick };
   }
@@ -361,14 +375,17 @@ export function stickVerdict(assumed: DeviceData, result: ProbeResult, who: stri
   const measured = Object.keys(result.stick).length > 0 || Object.keys(cardinal).length > 0;
   if (!measured) return null;
   const fact = probeInvertX(assumed);
-  const written = result.invertXWritten ?? fact;
+  const written = result.invertXWritten === undefined ? fact : result.invertXWritten;
   const word = (value: boolean): string => (value ? "on" : "off");
   const head = `${who} stick:`;
-  if (readsReversed(result)) {
-    if (written === undefined) return `${head} X read reversed`;
-    return fact === undefined
-      ? `${head} X read reversed; saving sets Invert X ${word(!written)}`
-      : `${head} X still reversed with Invert X ${word(written)}; saving sets it ${word(!written)}`;
+  if (fact !== undefined && readsReversed(result)) {
+    if (written === null || written === undefined) {
+      return (
+        `${head} X read reversed; not saved, because what the press test on the unit was ` +
+        "written with is not known. Take the press test off the units and put it back"
+      );
+    }
+    return `${head} X still reversed with Invert X ${word(written)}; saving sets it ${word(!written)}`;
   }
   const wrong = [
     ...STICK_DIRECTIONS.map((d) => [d, result.stick[d]] as const),
@@ -377,7 +394,7 @@ export function stickVerdict(assumed: DeviceData, result: ProbeResult, who: stri
     .filter(([direction, actual]) => actual !== undefined && actual !== direction)
     .map(([direction, actual]) => `${direction} reads ${String(actual)}`);
   if (wrong.length === 0) {
-    return written === undefined
+    return written === undefined || written === null
       ? `${head} reads true`
       : `${head} reads true; Invert X ${word(written)}`;
   }

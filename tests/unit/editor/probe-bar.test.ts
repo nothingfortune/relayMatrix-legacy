@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { start } from "../../../src/editor/app.js";
 import { PROBE_SLOT_NAMES } from "../../../src/editor/probe-units.js";
 import { buildPayload } from "../../../src/lib/editor/payload.js";
+import { loadTemplate } from "../../../src/lib/io.js";
+import { buildStickCalibrationProfile } from "../../../src/lib/probe.js";
+import { UnitSession } from "../../../src/lib/unitsession.js";
 import { makeUnit, plugIn } from "../../helpers/fakehid.js";
 import type { FakeHidDevice } from "../../helpers/fakehid.js";
 
@@ -86,6 +89,99 @@ describe("the press test on the units", SLOW, () => {
     }
     expect(bar()).toContain("Left unit: press test installed.");
     expect(bar()).toContain("Right unit: press test installed.");
+  });
+
+  it("writes the device's X into both passes' stick, and knows it from the unit", async () => {
+    // The fixture's right template carries an inverted stick; the map says it is not.
+    const payload = structuredClone(PAYLOAD);
+    const map = payload.devices["cyborg2-right"];
+    if (!map) throw new Error("no right unit in the fixture");
+    map.stick_invert_x = false;
+    const right = makeUnit("right");
+    plugIn([right]);
+    openPressTest(payload);
+    await putOn();
+    const session = new UnitSession(right.unit);
+    await session.identify();
+    const slots = (await session.readAll()).filter((slot) =>
+      Object.values(PROBE_SLOT_NAMES).includes(slot.name),
+    );
+    expect(slots.map((slot) => slot.name).sort()).toEqual(Object.values(PROBE_SLOT_NAMES).sort());
+    for (const slot of slots) {
+      const stick = slot.inputs.find((input) => input.stick !== undefined)?.stick;
+      expect(stick?.invertXAxis, slot.name).toBe(false);
+    }
+  });
+
+  it("judges the stick against the probe it put on the unit, and against nothing it did not", async () => {
+    const payload = structuredClone(PAYLOAD);
+    const map = payload.devices["cyborg2-right"];
+    if (!map) throw new Error("no right unit in the fixture");
+    map.stick_invert_x = false;
+    const template = loadTemplate("templates/everspace2-akimbo-right.json");
+    const keys = buildStickCalibrationProfile(template, {
+      id: "b",
+      name: "z",
+      invertX: false,
+    }).assignments;
+    const mirror: Record<string, string> = {
+      up: "up",
+      up_right: "up_left",
+      right: "left",
+      down_right: "down_left",
+      down: "down",
+      down_left: "down_right",
+      left: "right",
+      up_left: "up_right",
+    };
+    /** The right unit's zero pass, the unit mirroring every push. */
+    const holdMirrored = async (): Promise<void> => {
+      const select = document.querySelector<HTMLSelectElement>(".probe-bar select");
+      if (!select) throw new Error("no unit selector");
+      // The press test lists the left unit, then the right.
+      select.value = "1";
+      select.dispatchEvent(new Event("change"));
+      click("Stick zero", ".probe-bar");
+      let done = 0;
+      for (const push of Object.keys(mirror)) {
+        const entry = keys.find((item) => item.sector === mirror[push]);
+        if (!entry) throw new Error(`no key for ${String(mirror[push])}`);
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { code: entry.key, bubbles: true, cancelable: true }),
+        );
+        // One push is read once the stick has settled; the next waits for it.
+        done += 1;
+        await vi.waitFor(() => {
+          expect(Object.keys(stored().sectors ?? {})).toHaveLength(done);
+        }, WAIT);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    };
+    const stored = (): { sectors?: Record<string, string> } =>
+      (
+        JSON.parse(localStorage.getItem("azeron-probe-v1") ?? "{}") as Record<
+          string,
+          { sectors?: Record<string, string> }
+        >
+      ).right ?? {};
+    const verdict = (): string => document.querySelector(".probe .note.bad")?.textContent ?? "";
+
+    // A page that has not seen the unit's probe cannot say what it was written with.
+    plugIn([]);
+    openPressTest(payload);
+    await holdMirrored();
+    expect(verdict()).toMatch(/Right stick: X read reversed; not saved/);
+    expect(verdict()).not.toContain("saving sets it");
+
+    // Once it has put the probe on, the value is the one it read back from the unit.
+    localStorage.clear();
+    plugIn([makeUnit("right")]);
+    openPressTest(payload);
+    await putOn();
+    await holdMirrored();
+    expect(verdict()).toContain(
+      "Right stick: X still reversed with Invert X off; saving sets it on",
+    );
   });
 
   it("switches the units to the stick pass when the page does", async () => {

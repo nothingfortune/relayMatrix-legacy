@@ -27,4 +27,10 @@ export interface CapturedUnit {
   stick: Partial<Record<StickDirection, StickDirection>>;
   /** Physical push -> the sector the firmware reported for it. */
   sectors?: Partial<Record<StickSector, StickSector>>;
+  /**
+   * The `invertXAxis` the probe held when the stick readings were taken (null: not known).
+   * A reading is judged against this, not against the probe on the unit at the time it is
+   * looked at, which may have been put back since.
+   */
+  stickX?: boolean | null;
 }

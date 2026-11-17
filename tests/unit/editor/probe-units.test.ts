@@ -11,6 +11,7 @@ import {
   holdsProbe,
   PROBE_SLOT_NAMES,
   probeSlot,
+  probeWrittenX,
   putProbes,
   removeProbes,
   runProbe,
@@ -135,5 +136,52 @@ describe("taking the press test off", () => {
   it("refuses to leave a unit with no slot at all", async () => {
     const { unit } = await open([PROBE_SLOT_NAMES.pins, PROBE_SLOT_NAMES.zero], { activeSlot: 0 });
     await expect(removeProbes(unit)).rejects.toThrow(/nothing to keep/);
+  });
+});
+
+/** The probes as built with a given X, on the right unit's export, whose stick carries true. */
+function probesWith(invertX: boolean | undefined): ProbeProfiles {
+  const base = template("right");
+  const x = invertX === undefined ? {} : { invertX };
+  return {
+    pins: only(
+      buildProbeProfile(base, { id: "a", name: "p", unknownPins: UNKNOWN_PINS, ...x }).doc,
+    ),
+    zero: only(buildStickCalibrationProfile(base, { id: "b", name: "z", ...x }).doc),
+    unknownPins: UNKNOWN_PINS,
+  };
+}
+
+describe("what the probe on a unit was written with", () => {
+  it("is read back off the unit, whatever the page would write now", async () => {
+    for (const written of [true, false]) {
+      const { unit } = await open();
+      await putProbes(unit, probesWith(written), "pins");
+      expect(probeWrittenX(unit), String(written)).toBe(written);
+    }
+    // A probe built with no fact is the template's own, which the right unit's stick has on.
+    const { unit } = await open();
+    await putProbes(unit, probesWith(undefined), "pins");
+    expect(probeWrittenX(unit)).toBe(true);
+  });
+
+  it("follows a probe put over an older one", async () => {
+    const { unit } = await open();
+    await putProbes(unit, probesWith(true), "pins");
+    expect(probeWrittenX(unit)).toBe(true);
+    await putProbes(unit, probesWith(false), "pins");
+    expect(probeWrittenX(unit)).toBe(false);
+  });
+
+  it("is not known with no probe on the unit, or with the two passes disagreeing", async () => {
+    const { unit } = await open();
+    expect(probeWrittenX(unit)).toBeNull();
+    await putProbes(unit, probesWith(false), "pins");
+    const other = await open();
+    await putProbes(other.unit, probesWith(true), "pins");
+    const zero = other.unit.slots.find((slot) => slot.name === PROBE_SLOT_NAMES.zero);
+    if (zero === undefined) throw new Error("no zero pass");
+    unit.slots = unit.slots.map((slot) => (slot.name === PROBE_SLOT_NAMES.zero ? zero : slot));
+    expect(probeWrittenX(unit)).toBeNull();
   });
 });

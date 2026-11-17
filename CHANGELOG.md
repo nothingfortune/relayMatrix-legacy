@@ -28,6 +28,14 @@ Every profile change, and why. `playtests.md` records what each layout felt like
   (a left-right swap flips `stick_invert_x` instead), says "still reversed" when a
   corrected unit reads reversed, marks a wrong push red with what it read, and sums up each
   stick in one line.
+- **The press test judges a reading against the probe the unit actually runs.** It compared
+  a result with the X the device map implies when the page opened, so a probe left on a unit
+  by an older page, or put before the map changed, could make it save the wrong
+  `stick_invert_x` (or flip a saved one back on the next run). The X is now read off the
+  unit's own probe slots, and a hand whose probe was not read reports the reading and saves
+  no X change, saying to take the press test off and put it back. A reversed reading on a map
+  with no keyboard X fact is a key swap again, as before the change; flipping a per-mode
+  `stick_invert_x` changes only the keyboard entry; and the saved-changes line names each mode.
 
 ### Added
 
