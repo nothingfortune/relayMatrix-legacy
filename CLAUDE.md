@@ -456,18 +456,33 @@ These came from real play sessions; each one is a lint rule now.
    carries as 176 against the left unit's -1 — a half turn, in degrees, written by the app
    itself. `stick_angle` and `stick_directions` exist as corrections for a unit whose
    template does not already carry one; they are alternatives, and
-   `stick-double-correction` errors if both are set. The right unit uses `stick_directions`.
-   **The right unit's template also carries `invertXAxis: true`** (with angle 176; the
-   app's own right-unit exports, recon 2026-11-15, carry false). The press test of
-   2026-11-11 ran in keyboard mode on that template and found left and right swapped, up
-   and down right: a half turn undoes the mount, one X inversion is left, which
-   `stick_directions` puts right by swapping the keys. The pointer and an Xbox stick have
-   no keys to swap, so on the right unit they pushed right and went left. `devices/` carries
-   that as `stick_invert_x: {mouse: false, xbox: false}`: those modes are written with X not
-   inverted, keyboard mode is untouched (its swap is hand-verified), and a layout's own
-   `invert_x` overrides either. Inferred from the press test and the app's own exports, not
-   flown: `stick-double-correction` errors on a map that swaps left and right and also sets
-   `stick_invert_x.keyboard`, and warns on a layout's `invert_x` on such a stick.
+   `stick-double-correction` errors if both are set.
+   **The right unit's X is one hard-coded device fact: `stick_invert_x: false`** in
+   `devices/cyborg2-right.yaml`, for keyboard, mouse and Xbox alike, and the unit has no
+   `stick_directions`. Its template carries `invertXAxis: true` with angle 176 (the app's
+   own right-unit exports, recon 2026-11-15, carry false). The press test of 2026-11-11 ran
+   in keyboard mode on that template and found left and right swapped, up and down true:
+   the half turn undoes the mount and the inversion is the one X flip left. The repo
+   answered with a key swap, which only keyboard mode has, so the pointer and an Xbox stick
+   went the wrong way; one fact in every mode replaces it. Keyboard output is the same
+   keys reaching the same pushes (right: `analogKeys.right.right` now holds what
+   `.left` held, `invertXAxis` false), proved in `tests/unit/lib/probe-stick.test.ts` on
+   the one measurement there is and **not flown**. A layout's own `invert_x` overrides it.
+   `stick_invert_x` is a bare boolean (every mode) or a per-mode map.
+   **The press test measures the stick as the compiler writes it**: its probe stick record
+   carries the device's `stick_invert_x` keyboard value (`probeInvertX`), so a corrected
+   unit reads true for real. Before this it measured the raw template, saved the swap it
+   found, and then read the same raw template again and agreed with itself -- it never saw
+   the pointer or Xbox stick, and its dial painted a push the unit called something else
+   green. A left-right swap now means the X fact is wrong: saving flips `stick_invert_x`
+   (`deviceFromProbe`), never writes a key swap, and removes a stale one; a unit with the
+   fact that reads any other way says "still reversed" and saves no swap. A map with no
+   fact keeps the old behaviour (a measured swap is a `stick_directions`). The zero pass
+   no longer calls a mirror a rotation (`readsReversed`). The summary says one line per
+   stick (`stickVerdict`): "Right stick: X still reversed with Invert X off; saving sets
+   it on". What is not known: whether the thumb pad's pins (`thumb_up` 34↔36,
+   `thumb_left` 35↔33) are the hardware or a labelling artifact; the press test only
+   records the pin that fired under the cell it prompted.
    The right unit also reads a **different direction block**: see the export format rules.
 
 See `docs/guides/analog-input.md` for the standing question of how to get real analog axes

@@ -13,14 +13,21 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ### Fixed
 
-- **The right stick's X is no longer reversed in mouse and Xbox mode.** The right unit's
-  template inverts X (`invertXAxis: true`, with angle 176). The press test of 2026-11-11 had
-  already found left and right swapped in keyboard mode, and `stick_directions` fixed that
-  by swapping the keys; a pointer or Xbox stick has no keys, so it was never corrected. The
-  device map now says `stick_invert_x: {mouse: false, xbox: false}` and the compiler writes
-  those modes with X not inverted. Keyboard mode is byte for byte what it was; no committed
-  layout has a pointer or Xbox stick on the right unit, so `dist/` does not change. Inferred
-  from the press test and the app's own right-unit exports, not yet flown.
+- **The right stick's X is one device fact, and the press test measures it.** The right
+  unit's template inverts X (`invertXAxis: true`, with angle 176). Keyboard mode was put
+  right with a key swap (`stick_directions`); the pointer and an Xbox stick have no keys,
+  so they were never corrected and pushed right went left. `devices/cyborg2-right.yaml` now
+  says `stick_invert_x: false`, for every mode, and has no swap: keyboard sends the same
+  keys for the same pushes, written in the fields they name, and `dist/` changes for the
+  five right-hand keyboard layouts (`invertXAxis` false, the left and right fields
+  exchanged). Not flown. `stick_invert_x` takes a bare true or false, or a map per mode.
+  The press test had been measuring the raw template, saving the swap it found and then
+  agreeing with itself, and its zero pass took a mirror for a rotation ("zero is where the
+  software assumes") while the dial painted a push read as its opposite green. It now
+  measures the record as the compiler writes it, never saves a key swap on top of the fact
+  (a left-right swap flips `stick_invert_x` instead), says "still reversed" when a
+  corrected unit reads reversed, marks a wrong push red with what it read, and sums up each
+  stick in one line.
 
 ### Added
 

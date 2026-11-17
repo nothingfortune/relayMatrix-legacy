@@ -65,6 +65,10 @@ export const PROBE_CSS = `
                           align-items: center; justify-content: center; gap: 1px; }
 .probe .stick-dial .dir.done { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--key-bottom)); }
 .probe .stick-dial .dir.done .pin { color: var(--ok); }
+.probe .stick-dial .dir.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--key-bottom)); }
+.probe .stick-dial .dir.wrong .pin { color: var(--bad); font-weight: 600; }
+.probe .stick-dial .push { font-size: 10px; color: var(--muted); }
+.probe .note.bad { color: var(--bad); }
 .probe .stick-dial .dir.active { outline: 3px solid var(--accent); outline-offset: 1px; }
 .probe .stick-dial .glyph { font-size: 14px; line-height: 1; color: var(--muted); }
 .probe .stick-dial .up { grid-area: 1 / 2; }

@@ -228,7 +228,7 @@ describe("deviceFromProbe", () => {
       stick: { left: "right" },
     });
     expect(notes.some((note) => note.includes("dpad_left: pin 33, not 35"))).toBe(true);
-    expect(notes.some((note) => note.includes("stick left drives the 'right' field"))).toBe(true);
+    expect(notes.some((note) => note.includes("stick left reads as right"))).toBe(true);
   });
 });
 

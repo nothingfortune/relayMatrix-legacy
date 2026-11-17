@@ -142,14 +142,11 @@ positions:
     col: thumb
     row: 0
     kind: stick
-stick_directions:
-  up: up
-  right: left
-  down: down
-  left: right
-# The template's stick carries invertXAxis: true, which reverses X in every mode. Keyboard
-# mode is put right by the swap above; the pointer and an Xbox stick send no keys to swap,
-# so their X is written as not inverted. A layout's own invert_x overrides this.
-stick_invert_x:
-  mouse: false
-  xbox: false
+# The thumb stick is hard-coded for a left unit and this one is mounted half a turn round,
+# so its X reads reversed. The template carries invertXAxis: true (with angle 176), which
+# reverses it again for every mode: the press test of 2026-11-11 saw left and right swapped
+# in keyboard mode, and a pointer or Xbox stick went the wrong way. X is written not
+# inverted in every mode, and no mode swaps keys. A layout's own invert_x overrides this.
+# The press test builds its probe with this value, so it measures the unit as compiled and
+# a stick still reversed is reported, never given a key swap on top.
+stick_invert_x: false

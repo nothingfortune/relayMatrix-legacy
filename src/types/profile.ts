@@ -222,12 +222,13 @@ export interface DeviceData {
   stick_zero?: string;
   stick_angle?: number;
   /**
-   * Whether the stick's X is written inverted, per mode, where the layout's own `invert_x` is
-   * silent. For a unit whose template carries an inversion that `stick_directions` already
-   * puts right in keyboard mode: the pointer and an Xbox stick send no keys to swap, so they
-   * are written as not inverted. Absent for a mode means the template's value.
+   * Whether the stick's X is written inverted, where the layout's own `invert_x` is silent:
+   * one bare true or false for every mode (the stick is hard-coded for a left unit, so a
+   * right unit's X is a fact about the hardware), or a map per keyboard, mouse and xbox.
+   * Absent for a mode means the template's value. The press test builds its probe with
+   * the keyboard value, so it measures the stick as the compiler writes it.
    */
-  stick_invert_x?: Partial<Record<"keyboard" | "mouse" | "xbox", boolean>>;
+  stick_invert_x?: boolean | Partial<Record<"keyboard" | "mouse" | "xbox", boolean>>;
   /** Pins that exist in exports but whose physical key is unidentified. Never written. */
   unknown_pins?: number[];
   positions: Record<string, DevicePosition>;

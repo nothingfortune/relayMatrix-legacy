@@ -14,6 +14,8 @@ export interface ProbePayload {
     /** This unit's own keys, when its probe was built on its own export. */
     assignments?: ProbeAssignment[];
     stickAssignments?: ProbeAssignment[];
+    /** The `invertXAxis` this unit's probe stick was written with (the compiler's). */
+    invertXWritten?: boolean;
   }[];
   assignments: ProbeAssignment[];
   /** From the stick-only calibration profile: all eight sectors, 45-degree resolution. */

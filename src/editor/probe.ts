@@ -11,6 +11,8 @@ import {
   deviceFromProbe,
   PHYSICAL_PUSHES,
   probeDiff,
+  readsReversed,
+  stickVerdict,
   stickZeroFrom,
 } from "../lib/probe.js";
 import type { ProbeAssignment, ProbeResult } from "../lib/probe.js";
@@ -34,6 +36,14 @@ const DIR_GLYPH: Record<string, string> = {
   right: "\u2192",
   down: "\u2193",
   left: "\u2190",
+};
+
+/** The word a person pushes the stick by, as the prompts say it. */
+const PUSH_WORD: Record<string, string> = {
+  up: "away",
+  right: "right",
+  down: "toward",
+  left: "left",
 };
 
 const STICK_PROMPTS: Record<StickDirection, string> = {
@@ -321,7 +331,13 @@ function onKey(event: KeyboardEvent): void {
 
 function resultFor(hand: string): ProbeResult {
   const capture = captureFor(hand);
-  return { pins: capture.pins, stick: capture.stick, sectors: capture.sectors ?? {} };
+  const written = state.payload.units.find((unit) => unit.hand === hand)?.invertXWritten;
+  return {
+    pins: capture.pins,
+    stick: capture.stick,
+    sectors: capture.sectors ?? {},
+    ...(written === undefined ? {} : { invertXWritten: written }),
+  };
 }
 
 function download(name: string, text: string, type: string): void {
@@ -417,11 +433,19 @@ function renderDiagram(unitIndex: number): HTMLElement {
     for (const direction of STICK_DIRECTIONS) {
       const mapped = capture.stick[direction];
       const active = isActive && prompt.direction === direction;
+      // A reading that is not the push is wrong, not done: green here said "correct" over a
+      // right push the unit called left.
+      const wrong = mapped !== undefined && mapped !== direction;
       const cell = el("div", {
-        class: `dir ${direction}${mapped ? " done" : ""}${active ? " active" : ""}`,
+        class: `dir ${direction}${mapped ? (wrong ? " wrong" : " done") : ""}${active ? " active" : ""}`,
       });
       cell.append(el("span", { class: "glyph" }, [DIR_GLYPH[direction] ?? ""]));
-      cell.append(el("span", { class: "pin" }, [mapped ?? ""]));
+      cell.append(el("span", { class: "push" }, [PUSH_WORD[direction] ?? direction]));
+      cell.append(
+        el("span", { class: "pin" }, [
+          mapped === undefined ? "" : wrong ? `reads ${PUSH_WORD[mapped] ?? mapped}` : "true",
+        ]),
+      );
       dial.append(cell);
     }
     const pressPin = layout.stickPress === null ? undefined : capture.pins[layout.stickPress];
@@ -507,10 +531,12 @@ function renderZero(): HTMLElement {
     panel.append(el("h2", {}, ["Measured"]));
     panel.append(
       el("div", { class: "note" }, [
-        zero.offsetDegrees === 0
-          ? "Zero is where the software assumes it is: pushing away reports 'up'."
-          : `The firmware's sectors sit ${String(zero.offsetDegrees)}deg from the unit. ` +
-            `Pushing ${String(zero.zeroPush)} is what it reports as 'up'.`,
+        readsReversed(resultFor(currentUnit().hand))
+          ? "X reads reversed: left and right are swapped."
+          : zero.offsetDegrees === 0
+            ? "Zero is where the software assumes it is: pushing away reports 'up'."
+            : `The firmware's sectors sit ${String(zero.offsetDegrees)}deg from the unit. ` +
+              `Pushing ${String(zero.zeroPush)} is what it reports as 'up'.`,
       ]),
     );
     panel.append(
@@ -554,6 +580,15 @@ function renderSummary(): HTMLElement {
     panel.append(row);
 
     const assumed = state.payload.devices[unit.device];
+    const verdict =
+      assumed === undefined
+        ? null
+        : stickVerdict(assumed, resultFor(unit.hand), unitLabel(unit.hand));
+    if (verdict !== null) {
+      panel.append(
+        el("div", { class: verdict.includes("reads true") ? "note" : "note bad" }, [verdict]),
+      );
+    }
     if (assumed && count > 0) {
       const notes = probeDiff(assumed, resultFor(unit.hand)).filter(
         (note) => !note.includes("never fired"),

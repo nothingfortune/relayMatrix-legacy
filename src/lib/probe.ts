@@ -19,7 +19,9 @@ import {
 } from "../types/azeron.js";
 import type { DeviceData, DevicePosition } from "../types/profile.js";
 import { blankRecord } from "./binding.js";
+import { normalizeInvertX } from "./stick-settings.js";
 import * as keys from "./keys.js";
+import { removeKey } from "./object.js";
 
 /**
  * Distinguishable probe keys. Letters and digits are ordered first as the encodings
@@ -45,6 +47,27 @@ export interface ProbeAssignment {
 export interface ProbeProfile {
   doc: ExportDocument;
   assignments: ProbeAssignment[];
+  /** The `invertXAxis` the probe's stick record carries: what the unit was tested with. */
+  invertXWritten?: boolean;
+}
+
+/**
+ * The X inversion the compiler writes for this unit's keyboard stick, which is the mode the
+ * press test runs in: the device map's `stick_invert_x`, or nothing when it has none and
+ * the template's own stands.
+ */
+export function probeInvertX(device: DeviceData): boolean | undefined {
+  return normalizeInvertX(device.stick_invert_x, device.device).keyboard;
+}
+
+/** A stick reading in which left and right are swapped and up and down are not. */
+export function xReversed(map: Partial<Record<string, string>>): boolean {
+  return (
+    map.right === "left" &&
+    map.left === "right" &&
+    (map.up ?? "up") === "up" &&
+    (map.down ?? "down") === "down"
+  );
 }
 
 export class ProbeError extends Error {}
@@ -57,7 +80,7 @@ export class ProbeError extends Error {}
  */
 export function buildProbeProfile(
   template: ExportDocument,
-  options: { id: string; name: string; unknownPins?: readonly number[] },
+  options: { id: string; name: string; unknownPins?: readonly number[]; invertX?: boolean },
 ): ProbeProfile {
   const doc = structuredClone(template);
   const target = doc.profiles[0];
@@ -76,6 +99,7 @@ export function buildProbeProfile(
   ];
 
   const assignments: ProbeAssignment[] = [];
+  let invertXWritten: boolean | undefined;
   let next = 0;
   /**
    * Stick directions are stored as numeric keycodes, so they require a probe key with a
@@ -104,6 +128,10 @@ export function buildProbeProfile(
     if (isStick) {
       record.types[0] = TYPE_STICK_KEYBOARD;
       const settings = record.analogSettings;
+      // The stick as the compiler writes it for this unit, or the swap it measures would be
+      // the template's and not the unit's.
+      if (settings && options.invertX !== undefined) settings.invertXAxis = options.invertX;
+      invertXWritten = settings?.invertXAxis === true;
       const live = settings ? activeAnalogKeys(settings) : undefined;
       for (const direction of STICK_DIRECTIONS) {
         const key = takeKey(true);
@@ -122,7 +150,7 @@ export function buildProbeProfile(
     assignments.push({ key, pin: record.pinOne, inputId: record.id, kind: "button" });
   }
 
-  return { doc, assignments };
+  return { doc, assignments, ...(invertXWritten === undefined ? {} : { invertXWritten }) };
 }
 
 export interface ProbeResult {
@@ -135,6 +163,8 @@ export interface ProbeResult {
    * identity map means the unit matches the software's left-handed assumption.
    */
   stick: Partial<Record<StickDirection, StickDirection>>;
+  /** The `invertXAxis` the probe was written with, from `ProbeProfile.invertXWritten`. */
+  invertXWritten?: boolean;
 }
 
 /**
@@ -168,6 +198,19 @@ export function deviceChanges(before: DeviceData, after: DeviceData): string[] {
       .map(([from, to]) => `${from} reads as ${to}`);
     changes.push(`stick: ${shown.length > 0 ? shown.join(", ") : "every direction as itself"}`);
   }
+  const invert = (data: DeviceData): string => JSON.stringify(data.stick_invert_x ?? null);
+  if (invert(before) !== invert(after)) {
+    const shown = (data: DeviceData): string => {
+      const held = normalizeInvertX(data.stick_invert_x, data.device);
+      const values = new Set(Object.values(held));
+      if (values.size === 0) return "as the template has it";
+      if (values.size === 1) return values.has(true) ? "on" : "off";
+      return Object.entries(held)
+        .map(([mode, value]) => `${mode} ${value ? "on" : "off"}`)
+        .join(", ");
+    };
+    changes.push(`stick Invert X: ${shown(before)} → ${shown(after)}`);
+  }
   if (before.stick_angle !== after.stick_angle) {
     changes.push(
       `stick angle: ${String(before.stick_angle ?? "none")} → ${String(after.stick_angle ?? "none")}`,
@@ -178,7 +221,13 @@ export function deviceChanges(before: DeviceData, after: DeviceData): string[] {
   }
   // Everything else the press test can write -- the stick zero, the pins it saw fire for
   // the first time -- and anything added to it later, so no result is called "nothing".
-  const named = new Set(["positions", "stick_directions", "stick_angle", "verified"]);
+  const named = new Set([
+    "positions",
+    "stick_directions",
+    "stick_invert_x",
+    "stick_angle",
+    "verified",
+  ]);
   const rest = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const field of [...rest].filter((key) => !named.has(key)).sort()) {
     const value = (data: DeviceData, empty: string): string => {
@@ -222,6 +271,11 @@ export function deviceFromProbe(assumed: DeviceData, result: ProbeResult): Devic
   const identity = STICK_DIRECTIONS.every(
     (direction) => (result.stick[direction] ?? direction) === direction,
   );
+  // The probe was written with the compiler's X for this unit, so what it read is the unit's
+  // own: a left-right swap is the X inversion being wrong, never a key swap to lay over it.
+  const fact = probeInvertX(assumed);
+  const written = result.invertXWritten ?? fact;
+  const reversed = readsReversed(result);
 
   // Verified means every position was pressed. A partial capture does not earn it, and
   // does not take it away from a map that already had it.
@@ -231,7 +285,21 @@ export function deviceFromProbe(assumed: DeviceData, result: ProbeResult): Devic
     unknown_pins: stillUnknown,
     verified: unseen === 0 || assumed.verified === true,
   };
-  if (!identity) next.stick_directions = { ...result.stick };
+  if (reversed && written !== undefined) {
+    next.stick_invert_x = !written;
+    removeKey(next, "stick_directions");
+  } else if (!identity && fact === undefined) {
+    next.stick_directions = { ...result.stick };
+  }
+  // A left-right key swap beside a hard-coded X corrects the same reversal twice.
+  const kept = next.stick_directions;
+  if (
+    probeInvertX(next) !== undefined &&
+    kept !== undefined &&
+    (kept.left === "right" || kept.right === "left")
+  ) {
+    removeKey(next, "stick_directions");
+  }
 
   if (result.sectors && Object.keys(result.sectors).length > 0) {
     const zero = stickZeroFrom(result.sectors);
@@ -240,7 +308,7 @@ export function deviceFromProbe(assumed: DeviceData, result: ProbeResult): Devic
     // rotation; writing both applies it twice, which `stick-double-correction` rejects --
     // so the probe produced maps its own linter would not accept. The sweep is exact for a
     // quarter turn and remaps at compile time, so it wins when it found anything.
-    if (zero.offsetDegrees !== 0 && identity) next.stick_angle = zero.offsetDegrees;
+    if (zero.offsetDegrees !== 0 && identity && !reversed) next.stick_angle = zero.offsetDegrees;
   }
   return next;
 }
@@ -256,13 +324,67 @@ export function probeDiff(assumed: DeviceData, result: ProbeResult): string[] {
       notes.push(`${name}: pin ${String(pin)}, not ${String(position.pin)}`);
     }
   }
-  for (const direction of STICK_DIRECTIONS) {
-    const actual = result.stick[direction];
-    if (actual && actual !== direction) {
-      notes.push(`stick ${direction} drives the '${actual}' field in the export`);
+  if (readsReversed(result)) {
+    notes.push("stick: X reads reversed");
+  } else {
+    for (const direction of STICK_DIRECTIONS) {
+      const actual = result.stick[direction];
+      if (actual && actual !== direction) notes.push(`stick ${direction} reads as ${actual}`);
     }
   }
   return notes;
+}
+
+/** The stick's four directions as the zero pass read them, which is the cross of its eight. */
+function cardinalSectors(result: ProbeResult): Partial<Record<StickDirection, string>> {
+  const found: Partial<Record<StickDirection, string>> = {};
+  for (const direction of STICK_DIRECTIONS) {
+    const sector = result.sectors?.[direction];
+    if (sector !== undefined) found[direction] = sector;
+  }
+  return found;
+}
+
+/** Either pass found left and right swapped with up and down true. */
+export function readsReversed(result: ProbeResult): boolean {
+  return xReversed(result.stick) || xReversed(cardinalSectors(result));
+}
+
+/**
+ * What the press test found of a stick and what saving does about it, in one line:
+ * "Right stick: X read reversed; saving sets Invert X on". Null until a stick push is read.
+ * A unit with a hard-coded X that still reads reversed says so: that is a fact about the
+ * unit, never "correct", and never answered with a key swap.
+ */
+export function stickVerdict(assumed: DeviceData, result: ProbeResult, who: string): string | null {
+  const cardinal = cardinalSectors(result);
+  const measured = Object.keys(result.stick).length > 0 || Object.keys(cardinal).length > 0;
+  if (!measured) return null;
+  const fact = probeInvertX(assumed);
+  const written = result.invertXWritten ?? fact;
+  const word = (value: boolean): string => (value ? "on" : "off");
+  const head = `${who} stick:`;
+  if (readsReversed(result)) {
+    if (written === undefined) return `${head} X read reversed`;
+    return fact === undefined
+      ? `${head} X read reversed; saving sets Invert X ${word(!written)}`
+      : `${head} X still reversed with Invert X ${word(written)}; saving sets it ${word(!written)}`;
+  }
+  const wrong = [
+    ...STICK_DIRECTIONS.map((d) => [d, result.stick[d]] as const),
+    ...Object.entries(cardinal),
+  ]
+    .filter(([direction, actual]) => actual !== undefined && actual !== direction)
+    .map(([direction, actual]) => `${direction} reads ${String(actual)}`);
+  if (wrong.length === 0) {
+    return written === undefined
+      ? `${head} reads true`
+      : `${head} reads true; Invert X ${word(written)}`;
+  }
+  const list = [...new Set(wrong)].join(", ");
+  return fact === undefined
+    ? `${head} ${list}; saving swaps those keys`
+    : `${head} still reversed (${list}); not saved`;
 }
 
 /**
@@ -291,7 +413,7 @@ export const PHYSICAL_PUSHES: readonly { id: StickSector; prompt: string }[] = [
  */
 export function buildStickCalibrationProfile(
   template: ExportDocument,
-  options: { id: string; name: string },
+  options: { id: string; name: string; invertX?: boolean },
 ): ProbeProfile {
   const doc = structuredClone(template);
   const target = doc.profiles[0];
@@ -312,6 +434,7 @@ export function buildStickCalibrationProfile(
   };
 
   let found = false;
+  let invertXWritten: boolean | undefined;
   for (const record of target.inputs) {
     const isStick =
       record.types[0] === TYPE_STICK_KEYBOARD ||
@@ -326,6 +449,8 @@ export function buildStickCalibrationProfile(
     const analog = record.analogSettings;
     if (!analog) throw new ProbeError("stick record has no analogSettings");
     analog.isEightDirectionalTrigger = true;
+    if (options.invertX !== undefined) analog.invertXAxis = options.invertX;
+    invertXWritten = analog.invertXAxis === true;
 
     for (const sector of STICK_SECTORS) {
       const key = takeAnalogKey();
@@ -351,7 +476,7 @@ export function buildStickCalibrationProfile(
   }
 
   if (!found) throw new ProbeError("template has no stick record to calibrate");
-  return { doc, assignments };
+  return { doc, assignments, ...(invertXWritten === undefined ? {} : { invertXWritten }) };
 }
 
 function isCardinal(sector: StickSector): sector is StickDirection {

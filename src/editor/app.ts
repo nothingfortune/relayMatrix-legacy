@@ -112,7 +112,7 @@ import type {
 } from "../types/profile.js";
 import { messageOf, removeKey } from "../lib/object.js";
 import { dumpYaml } from "../lib/yaml.js";
-import { buildProbeProfile, buildStickCalibrationProfile } from "../lib/probe.js";
+import { buildProbeProfile, buildStickCalibrationProfile, probeInvertX } from "../lib/probe.js";
 import type { ProbePayload } from "../types/probe.js";
 import { probePass, start as startProbe, stop as stopProbe } from "./probe.js";
 import type { Mode as ProbePass } from "./probe.js";
@@ -220,15 +220,20 @@ function probeUnits(): { device: DeviceData; template: ExportDocument }[] {
 
 /** One unit's two probes, built on that unit's own export so its stick reads as it will. */
 function probeProfilesFor(device: DeviceData, template: ExportDocument) {
+  // The stick as the compiler writes it for this unit, so the test measures the unit.
+  const wanted = probeInvertX(device);
+  const invertX = wanted === undefined ? {} : { invertX: wanted };
   return {
     pins: buildProbeProfile(template, {
       id: PROBE_ID,
       name: "PROBE 1 pins",
       unknownPins: device.unknown_pins ?? [],
+      ...invertX,
     }),
     stick: buildStickCalibrationProfile(template, {
       id: PROBE_STICK_ID,
       name: "PROBE 2 stick zero",
+      ...invertX,
     }),
   };
 }
@@ -249,6 +254,9 @@ function probePayload(): ProbePayload {
         device: device.device,
         assignments: built.pins.assignments,
         stickAssignments: built.stick.assignments,
+        ...(built.pins.invertXWritten === undefined
+          ? {}
+          : { invertXWritten: built.pins.invertXWritten }),
       };
     }),
     assignments: shared.pins.assignments,

@@ -7,6 +7,7 @@
  */
 
 import type { StickDirection } from "../types/azeron.js";
+import { normalizeInvertX } from "./stick-settings.js";
 import type {
   ActionSetData,
   ActionSpec,
@@ -52,14 +53,7 @@ export class Device {
     this.hasSensor = data.sensor !== false;
     this.stickDirections = data.stick_directions ?? {};
     this.stickAngle = data.stick_angle;
-    this.stickInvertX = data.stick_invert_x ?? {};
-    for (const [mode, value] of Object.entries(this.stickInvertX)) {
-      if (!["keyboard", "mouse", "xbox"].includes(mode) || typeof value !== "boolean") {
-        throw new Error(
-          `${data.device}: stick_invert_x.${mode} must be true or false, for keyboard, mouse or xbox`,
-        );
-      }
-    }
+    this.stickInvertX = normalizeInvertX(data.stick_invert_x, data.device);
     this.unknownPins = new Set(data.unknown_pins ?? []);
     this.positions = data.positions;
     this.pinByPosition = Object.fromEntries(
