@@ -5311,7 +5311,7 @@
                   0
                 ],
                 "right": [
-                  65,
+                  68,
                   0,
                   0
                 ],
@@ -5321,7 +5321,7 @@
                   0
                 ],
                 "left": [
-                  68,
+                  65,
                   0,
                   0
                 ]
@@ -5397,7 +5397,7 @@
             "lockZoneAngle": 70,
             "lockZoneSize": 30,
             "isRightAnalog": true,
-            "invertXAxis": true,
+            "invertXAxis": false,
             "invertYAxis": false
           },
           "scrollSpeed": 1,

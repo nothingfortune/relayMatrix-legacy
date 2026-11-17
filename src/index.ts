@@ -43,7 +43,7 @@ import {
 } from "./lib/hidcapture.js";
 import type { HidEvent } from "./lib/hidcapture.js";
 import { readUsbPcap } from "./lib/usbpcap.js";
-import { buildProbeProfile, buildStickCalibrationProfile } from "./lib/probe.js";
+import { buildProbeProfile, buildStickCalibrationProfile, probeInvertX } from "./lib/probe.js";
 import { checkFileName } from "./lib/scaffold.js";
 import { addActions, patchActionBindings, removeActions } from "./lib/actionfile.js";
 import { openInChromium } from "./lib/browser.js";
@@ -284,10 +284,13 @@ function cmdProbe(devices: string[], templatePath: string, outDir: string): numb
 
   // One profile serves both units: the pins are what is being tested, and the same file
   // imports onto either unit.
+  const wanted = probeInvertX(first.data);
+  const invertX = wanted === undefined ? {} : { invertX: wanted };
   const { doc, assignments } = buildProbeProfile(template, {
     id: PROBE_ID,
     name: "PROBE 1 pins",
     unknownPins: [...first.unknownPins],
+    ...invertX,
   });
   const profilePath = join(outDir, "probe-1-pins.json");
   writeText(profilePath, `${JSON.stringify(doc, null, 2)}\n`);
@@ -295,6 +298,7 @@ function cmdProbe(devices: string[], templatePath: string, outDir: string): numb
   const calibration = buildStickCalibrationProfile(template, {
     id: PROBE_STICK_ID,
     name: "PROBE 2 stick zero",
+    ...invertX,
   });
   const stickPath = join(outDir, "probe-2-stick-zero.json");
   writeText(stickPath, `${JSON.stringify(calibration.doc, null, 2)}\n`);

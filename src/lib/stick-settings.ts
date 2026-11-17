@@ -69,6 +69,31 @@ export const STICK_SETTING_FIELDS: readonly (keyof PositionSpec)[] = [
 /** The device's per-mode X inversion (`stick_invert_x`), or nothing. */
 export type InvertXByMode = Partial<Record<string, boolean>>;
 
+export const STICK_MODE_NAMES_LIST: readonly StickModeName[] = ["keyboard", "mouse", "xbox"];
+
+/**
+ * A device map's `stick_invert_x` as one value per mode. A bare true or false is the one
+ * hard-coded fact about the unit's stick, for every mode; a map says it per mode. Anything
+ * else is refused, so a misspelt mode cannot sit in a map doing nothing.
+ */
+export function normalizeInvertX(
+  value: boolean | Partial<Record<string, boolean>> | undefined,
+  device = "device",
+): InvertXByMode {
+  if (value === undefined) return {};
+  if (typeof value === "boolean") {
+    return Object.fromEntries(STICK_MODE_NAMES_LIST.map((mode) => [mode, value]));
+  }
+  for (const [mode, held] of Object.entries(value)) {
+    if (!(STICK_MODE_NAMES_LIST as readonly string[]).includes(mode) || typeof held !== "boolean") {
+      throw new Error(
+        `${device}: stick_invert_x.${mode} must be true or false, for keyboard, mouse or xbox`,
+      );
+    }
+  }
+  return { ...value };
+}
+
 function whole(position: string, field: string, value: unknown, low: number, high: number): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < low || value > high) {
     throw new StickSettingError(

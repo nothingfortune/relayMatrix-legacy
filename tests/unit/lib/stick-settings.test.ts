@@ -33,7 +33,7 @@ const LEFT = "games/SpaceSims/everspace/profiles/akimbo-v10-left.yaml";
 type Hand = "left" | "right";
 type Mode = "keyboard" | "mouse" | "xbox";
 
-/** The right unit as its committed map describes it: the key swap and the per-mode X. */
+/** The right unit as it was mapped before one fact replaced the swap (probe-stick.test.ts has the new): the key swap and the pointer and Xbox X. */
 function rightDevice(extra: Partial<DeviceData> = {}): Device {
   const base = loadProfile(RIGHT, game).device.data;
   return new Device({
