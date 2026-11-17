@@ -25,7 +25,7 @@ interface Call {
   body: Record<string, unknown>;
 }
 
-function served(findings: unknown[] = []): Call[] {
+function served(findings: unknown[] = [], built: unknown[] = []): Call[] {
   SERVED.AZERON_SERVED = true;
   const calls: Call[] = [];
   vi.stubGlobal(
@@ -39,7 +39,7 @@ function served(findings: unknown[] = []): Call[] {
             ok: true,
             saved: true,
             path: "p",
-            check: { game: null, built: [], findings, buildErrors: [] },
+            check: { game: null, built, findings, buildErrors: [] },
           }),
       });
     }),
@@ -445,6 +445,31 @@ describe("saving macros", () => {
     await vi.waitFor(() => {
       expect(saveButton()?.textContent).toBe("Saved");
     });
+  });
+
+  it("does not call the helper's macros.json a layout the units are behind on", async () => {
+    const built = [
+      {
+        output: "dist/SpaceSims/everspace/macros.json",
+        importPath: "dist/SpaceSims/everspace/macros.json",
+        changed: true,
+      },
+    ];
+    const calls = served([], built);
+    mount();
+    tab("In-game");
+    typeInto(field(macroRow("quick_heal"), "[data-macro-keys]"), "H K", "change");
+    saveButton()?.click();
+    await vi.waitFor(() => {
+      expect(calls.some((call) => call.path === "/api/save")).toBe(true);
+    });
+    await vi.waitFor(() => {
+      expect(saveButton()?.textContent).toBe("Saved");
+    });
+    // Only the helper's program changed: no keypad layout, so nothing to write to the units,
+    // and no call to ask whether they are behind.
+    expect(document.body.textContent).not.toContain("Not on the units");
+    expect(calls.some((call) => call.path.startsWith("/api/units"))).toBe(false);
   });
 
   it("saves only what changed: a macros edit alone writes macros.yaml and not the actions", async () => {

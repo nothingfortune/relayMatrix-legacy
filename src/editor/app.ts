@@ -2627,11 +2627,12 @@ function reportSave(path: string, result: SaveResponse, also: readonly string[] 
     return box;
   }
   const changed = check.built.filter((entry) => entry.changed);
+  const forUnits = changed.filter((entry) => !isHelperFile(entry.output));
   box.append(el("div", {}, ["Saved."]));
   if (check.pedals !== undefined) box.append(renderPedalsVerdict(check.pedals));
   box.append(
-    el("div", changed.length > 0 ? {} : { class: "muted" }, [
-      changed.length > 0 ? "Not on the units yet: Write to units." : "Nothing new for the units.",
+    el("div", forUnits.length > 0 ? {} : { class: "muted" }, [
+      forUnits.length > 0 ? "Not on the units yet: Write to units." : "Nothing new for the units.",
     ]),
   );
   // Where it went, for anyone who wants it, out of the way of everyone who does not.
@@ -3092,6 +3093,11 @@ let failedSnapshot: string | null = null;
  * the game that has not been told about new keys or pedals.
  */
 const pendingImports = new Map<string, string>();
+
+/** A build output that is the helper's program, not a keypad layout: no unit is ever written it. */
+function isHelperFile(output: string): boolean {
+  return output.endsWith("/macros.json");
+}
 let gameBehind = false;
 
 /**
@@ -4938,7 +4944,9 @@ async function saveScheme(quiet = false): Promise<void> {
       inGamePedals ||= done.inGamePedals === true;
       const check = done.result.check;
       if (check && !("error" in check)) {
-        for (const entry of check.built) if (entry.changed) built.set(entry.output, entry);
+        for (const entry of check.built) {
+          if (entry.changed && !isHelperFile(entry.output)) built.set(entry.output, entry);
+        }
       }
     } catch (error) {
       saveNote =

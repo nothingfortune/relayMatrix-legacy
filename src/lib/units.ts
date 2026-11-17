@@ -144,6 +144,11 @@ function tuningOf(record: InputRecord): Record<string, number | string> {
   ];
   for (const [name, value] of switches)
     if (typeof value === "boolean") found[name] = value ? "on" : "off";
+  // The key a held stick sends, spelled the one way whichever the app stored it as.
+  const held: unknown = Array.isArray(analog.holdKeyValues) ? analog.holdKeyValues[0] : undefined;
+  if (String(analog.holdType) === "1" && (typeof held === "string" || typeof held === "number")) {
+    found["hold key"] = keyToName(String(held)) ?? String(held);
+  }
   return found;
 }
 
