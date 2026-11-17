@@ -214,6 +214,14 @@ function commitStickBurst(): void {
   }
 
   const capture = captureFor(currentUnit().hand);
+  // Readings from a probe that has been put back since are not about the one on the unit now.
+  const held = writtenNow(currentUnit().hand) ?? null;
+  const dropped = writtenX !== null && capture.stickX !== undefined && capture.stickX !== held;
+  if (dropped) {
+    capture.stick = {};
+    capture.sectors = {};
+  }
+  if (writtenX !== null) capture.stickX = held;
   if (state.mode === "zero") {
     const push = PHYSICAL_PUSHES[state.zeroStep];
     if (!push) return;
@@ -226,7 +234,9 @@ function commitStickBurst(): void {
     capture.stick[prompt.direction] = winner as StickDirection;
     state.step += 1;
   }
-  state.message = null;
+  state.message = dropped
+    ? "The press test on the unit was put back: the stick readings from before it were dropped."
+    : null;
   state.burstNote = samples > 1 ? `${winner} (best of ${String(samples)} readings)` : winner;
   state.lockUntil = now() + LOCKOUT_MS;
   save();
@@ -329,9 +339,23 @@ function onKey(event: KeyboardEvent): void {
   render();
 }
 
+/**
+ * What the probe on a hand's unit carries now. Where the page reads units, what the unit's
+ * own probe holds (null: not known); otherwise the probe the payload describes.
+ */
+function writtenNow(hand: string): boolean | null | undefined {
+  return writtenX === null
+    ? state.payload.units.find((unit) => unit.hand === hand)?.invertXWritten
+    : writtenX(hand);
+}
+
 function resultFor(hand: string): ProbeResult {
   const capture = captureFor(hand);
-  const written = state.payload.units.find((unit) => unit.hand === hand)?.invertXWritten;
+  const current = writtenNow(hand);
+  const read = Object.keys(capture.stick).length + Object.keys(capture.sectors ?? {}).length > 0;
+  // Where units are read, stick readings are judged against the probe they were taken on,
+  // not the one there now; one taken before that was recorded is not known to match it.
+  const written = !read || writtenX === null ? current : (capture.stickX ?? null);
   return {
     pins: capture.pins,
     stick: capture.stick,
@@ -638,6 +662,8 @@ let saveDevice: ((path: string, content: string) => void) | null = null;
 
 /** Told when the pass or the unit being tested changes, so the units can follow. */
 let changed: ((pass: Mode, unitIndex: number) => void) | null = null;
+/** What the probe on a hand's unit was written with, when the page can read it off the unit. */
+let writtenX: ((hand: string) => boolean | null) | null = null;
 
 function tellChanged(): void {
   changed?.(state.mode, state.unitIndex);
@@ -817,11 +843,13 @@ export function start(
   options: {
     save?: (path: string, content: string) => void;
     changed?: (pass: Mode, unitIndex: number) => void;
+    writtenX?: (hand: string) => boolean | null;
   } = {},
 ): void {
   if (!payload) throw new Error("no probe payload embedded in the page");
   saveDevice = options.save ?? null;
   changed = options.changed ?? null;
+  writtenX = options.writtenX ?? null;
   if (!document.getElementById("azeron-probe-styles")) {
     const style = document.createElement("style");
     style.id = "azeron-probe-styles";
@@ -857,4 +885,5 @@ export function stop(): void {
   mountPoint = null;
   saveDevice = null;
   changed = null;
+  writtenX = null;
 }

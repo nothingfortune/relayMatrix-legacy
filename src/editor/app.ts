@@ -116,7 +116,7 @@ import { buildProbeProfile, buildStickCalibrationProfile, probeInvertX } from ".
 import type { ProbePayload } from "../types/probe.js";
 import { probePass, start as startProbe, stop as stopProbe } from "./probe.js";
 import type { Mode as ProbePass } from "./probe.js";
-import { holdsProbe, putProbes, removeProbes, runProbe } from "./probe-units.js";
+import { holdsProbe, probeWrittenX, putProbes, removeProbes, runProbe } from "./probe-units.js";
 import type { ProbeProfiles } from "./probe-units.js";
 import {
   CONFIG_FILTER,
@@ -7577,6 +7577,23 @@ interface ProbeRun {
 
 let probeRun: ProbeRun | null = null;
 
+/**
+ * The `invertXAxis` the probe on each hand's unit was written with, as last read back off the
+ * unit. A result is judged against this, not against the device map as it stands now: the
+ * probe the unit runs is the one put there, whenever that was. A hand with no entry has a
+ * probe nobody here read (put by an older page, or not seen at all), and its X is not known.
+ */
+const probeWritten = new Map<string, boolean>();
+
+function recordProbeX(unit: FoundUnit): void {
+  const device = deviceForUnit(unit);
+  if (device === undefined) return;
+  const written = holdsProbe(unit) ? probeWrittenX(unit) : null;
+  const hand = device.hand ?? device.device;
+  if (written === null) probeWritten.delete(hand);
+  else probeWritten.set(hand, written);
+}
+
 /** The device map a connected unit is, by the id it reported. */
 function deviceForUnit(unit: FoundUnit): DeviceData | undefined {
   return Object.values(state.payload.devices).find(
@@ -7673,12 +7690,15 @@ async function connectProbeRun(run: ProbeRun): Promise<void> {
       render();
       return;
     }
+    // What a probe already on a unit was written with, before anything is put over it.
+    known.forEach(recordProbeX);
     if (run.then === "put") {
       const written = await putProbeOnUnits(run, known);
       if (!alive()) return;
       // A pass chosen while the probes went on was not followed then: follow it now.
       await catchUpProbePass(run, written);
     } else await removeProbeFromUnits(run, known);
+    known.forEach(recordProbeX);
     if (!alive()) return;
     run.stage = "ready";
   } catch (error) {
@@ -7962,6 +7982,7 @@ function renderPressTest(): HTMLElement {
     probeHost = el("div", {});
     startProbe(probePayload(), probeHost, {
       changed: followProbePass,
+      writtenX: (hand) => probeWritten.get(hand) ?? null,
       ...(canSave()
         ? {
             save: (path: string, content: string) => {
@@ -8325,6 +8346,8 @@ export function start(
   // which axes had their details open.
   pedalsNote = null;
   tuningOpen.clear();
+  // What a probe was written with is read again from the unit the next time one is opened.
+  probeWritten.clear();
   dockTab = storedDockTab();
   // The exports chosen for a layout were chosen against the data being replaced.
   addLayout.name = "";

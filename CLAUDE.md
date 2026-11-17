@@ -477,7 +477,19 @@ These came from real play sessions; each one is a lint rule now.
    green. A left-right swap now means the X fact is wrong: saving flips `stick_invert_x`
    (`deviceFromProbe`), never writes a key swap, and removes a stale one; a unit with the
    fact that reads any other way says "still reversed" and saves no swap. A map with no
-   fact keeps the old behaviour (a measured swap is a `stick_directions`). The zero pass
+   keyboard fact (`probeInvertX` undefined) keeps the old behaviour (a measured swap is a
+   `stick_directions`), reversed or not. A flip changes only the keyboard entry of a
+   per-mode `stick_invert_x`; a bare boolean stays bare.
+   **A result is judged against the X the probe on the unit was written with, read back
+   off the unit** (`probeWrittenX`, the stick record's `invertXAxis` in the probe slots,
+   both passes agreeing), never against what the device map implies now: a probe put by an
+   older page, or before the map changed, is still what the unit runs. The page records it
+   whenever it opens a unit or puts/removes a probe (`recordProbeX`, `writtenX` into the
+   press test). A hand whose probe nobody here read has no value (`invertXWritten: null`):
+   a reversed reading is reported, nothing is saved, and the line says to take the press
+   test off and put it back. Each stick reading is stamped with that value when it is taken
+   (`CapturedUnit.stickX`), and readings taken on a probe since put back are dropped, so a
+   reading is never judged against a probe it was not taken on. The zero pass
    no longer calls a mirror a rotation (`readsReversed`). The summary says one line per
    stick (`stickVerdict`): "Right stick: X still reversed with Invert X off; saving sets
    it on". What is not known: whether the thumb pad's pins (`thumb_up` 34↔36,

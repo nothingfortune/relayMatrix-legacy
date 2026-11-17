@@ -180,8 +180,10 @@ describe("the press test measures the stick as the compiler writes it", () => {
     expect(deviceChanges(assumed, next)).toContain("stick Invert X: off → on");
   });
 
-  it("turns a legacy key swap into the fact, so the two cannot sit together", () => {
-    // The right unit as it was: swap in the map, probe written with the template's true.
+  it("keeps a measured swap as a swap on a unit with no keyboard X fact, reversed or not", () => {
+    // The right unit as it was: a swap, and a fact for the pointer and Xbox only, so keyboard
+    // is the template's own (true) and the probe was written with that. A map with no fact
+    // for the mode the test runs in keeps the old behaviour: it is never given one.
     const assumed = withData(OLD);
     const result: ProbeResult = {
       pins: {},
@@ -189,19 +191,117 @@ describe("the press test measures the stick as the compiler writes it", () => {
       sectors: sectorsFor(true),
       invertXWritten: probeProfileX(assumed) ?? false,
     };
-    // The old map had the pointer and Xbox fact only, so keyboard was the template's own,
-    // true: the probe read reversed with it, and the fact that fixes that is false.
     expect(probeInvertX(assumed)).toBeUndefined();
     expect(result.invertXWritten).toBe(true);
-    expect(deviceFromProbe(assumed, result)).toMatchObject({ stick_invert_x: false });
-    expect(deviceFromProbe(assumed, result).stick_directions).toBeUndefined();
-    const unfixed = withData({ stick_directions: OLD.stick_directions ?? {} });
-    const legacy: ProbeResult = { ...result, invertXWritten: true };
-    const next = deviceFromProbe(unfixed, legacy);
+    const next = deviceFromProbe(assumed, result);
+    expect(next.stick_invert_x).toEqual(OLD.stick_invert_x);
+    expect(next.stick_directions).toEqual(result.stick);
+    // And a map with no fact at all, which reads reversed with the template's X: a swap too.
+    const bare = withData({});
+    const measured = deviceFromProbe(bare, { ...result, invertXWritten: true });
+    expect(measured.stick_invert_x).toBeUndefined();
+    expect(measured.stick_directions).toEqual(unitResult(true));
+    expect(stickVerdict(bare, { ...result, invertXWritten: true }, "Right")).toMatch(
+      /^Right stick: .*left reads right.*; saving swaps those keys$/,
+    );
+  });
+
+  it("flips only the keyboard entry of a per-mode fact, and keeps a bare boolean bare", () => {
+    const perMode = withData({ stick_invert_x: { keyboard: true, mouse: true, xbox: false } });
+    const reversed: ProbeResult = {
+      pins: {},
+      stick: unitResult(true),
+      sectors: sectorsFor(true),
+      invertXWritten: true,
+    };
+    const next = deviceFromProbe(perMode, reversed);
+    expect(next.stick_invert_x).toEqual({ keyboard: false, mouse: true, xbox: false });
+    const line = deviceChanges(perMode, next).find((change) => change.startsWith("stick Invert X"));
+    expect(line).toBe(
+      "stick Invert X: keyboard on, mouse on, xbox off → keyboard off, mouse on, xbox off",
+    );
+    // A bare boolean was one fact for every mode, and stays one.
+    const bare = withData({ stick_invert_x: true });
+    expect(deviceFromProbe(bare, reversed).stick_invert_x).toBe(false);
+    // A map and a bare boolean that say the same thing are not a change.
+    const same = withData({ stick_invert_x: { keyboard: true, mouse: true, xbox: true } });
+    expect(deviceChanges(bare, same)).toEqual([]);
+  });
+
+  it("reports and saves nothing about X when what the probe was written with is not known", () => {
+    const assumed = withData(NOW);
+    const unknown: ProbeResult = {
+      pins: {},
+      stick: unitResult(true),
+      sectors: sectorsFor(true),
+      invertXWritten: null,
+    };
+    expect(readsReversed(unknown)).toBe(true);
+    const next = deviceFromProbe(assumed, unknown);
     expect(next.stick_invert_x).toBe(false);
     expect(next.stick_directions).toBeUndefined();
-    expect(stickVerdict(unfixed, legacy, "Right")).toBe(
-      "Right stick: X read reversed; saving sets Invert X off",
+    expect(xChanges(assumed, next)).toEqual([]);
+    expect(stickVerdict(assumed, unknown, "Right")).toMatch(
+      /^Right stick: X read reversed; not saved.*put it back$/,
+    );
+    // Told what it was written with, the same reading is judged.
+    expect(deviceFromProbe(assumed, { ...unknown, invertXWritten: false }).stick_invert_x).toBe(
+      true,
+    );
+  });
+
+  it("run twice on a reversed stick: the second run, with the probe put back, reads true and saves nothing", () => {
+    const first: ProbeResult = {
+      pins: {},
+      stick: unitResult(true),
+      sectors: sectorsFor(true),
+      invertXWritten: probeInvertX(withData(NOW)) ?? false,
+    };
+    const saved = deviceFromProbe(withData(NOW), first);
+    expect(saved.stick_invert_x).toBe(true);
+    // The probe is put back from the saved map, so it is written with true, and the unit,
+    // which reads reversed with false, reads true with true.
+    const second: ProbeResult = {
+      pins: {},
+      stick: unitResult(false),
+      sectors: sectorsFor(false),
+      invertXWritten: probeInvertX(saved) ?? false,
+    };
+    expect(second.invertXWritten).toBe(true);
+    const again = deviceFromProbe(saved, second);
+    expect(again.stick_invert_x).toBe(true);
+    expect(xChanges(saved, again)).toEqual([]);
+    expect(stickVerdict(saved, second, "Right")).toBe("Right stick: reads true; Invert X on");
+  });
+
+  it("run twice without putting the probe back: the old probe is still judged as written", () => {
+    // The first run saved true. The probe on the unit is still the one written with false, so
+    // it reads reversed again, and the answer is the same true. It is not flipped back to false
+    // because the map now says true.
+    const saved = withData({ stick_invert_x: true });
+    const stale: ProbeResult = {
+      pins: {},
+      stick: unitResult(true),
+      sectors: sectorsFor(true),
+      invertXWritten: false,
+    };
+    expect(deviceFromProbe(saved, stale).stick_invert_x).toBe(true);
+    expect(xChanges(saved, deviceFromProbe(saved, stale))).toEqual([]);
+  });
+
+  it("judges a reading against what the probe was written with, not the device map", () => {
+    // The map says false now. An old probe built on the raw template (true) reads reversed:
+    // that says the true setting is wrong, so the fact becomes false, not true.
+    const assumed = withData(NOW);
+    const old: ProbeResult = {
+      pins: {},
+      stick: unitResult(true),
+      sectors: sectorsFor(true),
+      invertXWritten: true,
+    };
+    expect(deviceFromProbe(assumed, old).stick_invert_x).toBe(false);
+    expect(stickVerdict(assumed, old, "Right")).toBe(
+      "Right stick: X still reversed with Invert X on; saving sets it off",
     );
   });
 
@@ -257,6 +357,10 @@ describe("the press test measures the stick as the compiler writes it", () => {
     expect(readsReversed(result)).toBe(true);
   });
 });
+
+/** What saving would change about Invert X or a key swap (the zero pass also writes its own). */
+const xChanges = (before: DeviceData, after: DeviceData): string[] =>
+  deviceChanges(before, after).filter((change) => /Invert X|^stick:/.test(change));
 
 const stickNotes = (assumed: DeviceData, result: ProbeResult): string[] =>
   probeDiff(assumed, result).filter(

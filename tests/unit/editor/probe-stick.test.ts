@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { start } from "../../../src/editor/probe.js";
 import { loadDevice, loadTemplate } from "../../../src/lib/io.js";
 import { buildProbeProfile, buildStickCalibrationProfile } from "../../../src/lib/probe.js";
-import type { ProbePayload } from "../../../src/types/probe.js";
+import type { CapturedUnit, ProbePayload } from "../../../src/types/probe.js";
 
 function buildPayloadOnce(): ProbePayload {
   const left = loadDevice("cyborg2-left");
@@ -95,6 +95,15 @@ function holdAll(report: (push: string) => string): void {
   }
 }
 
+/** The right unit's readings as the page has kept them. */
+function stored(): CapturedUnit {
+  const all = JSON.parse(localStorage.getItem("azeron-probe-v1") ?? "{}") as Record<
+    string,
+    CapturedUnit
+  >;
+  return all.right ?? { pins: {}, stick: {} };
+}
+
 const notes = (): string =>
   [...document.querySelectorAll(".note")].map((node) => node.textContent).join(" | ");
 
@@ -151,5 +160,95 @@ describe("a stick that reads backwards is shown as wrong, never as done", () => 
         .sort();
     expect(words(1)).toEqual(words(0));
     expect(words(0)).toEqual(["down:toward", "left:left", "right:right", "up:away"]);
+  });
+});
+
+describe("the X a result is judged against is the unit's own probe's", () => {
+  const restart = (
+    writtenX: (hand: string) => boolean | null,
+    save?: (path: string, content: string) => void,
+  ): void => {
+    document.body.innerHTML = '<div id="app"></div>';
+    localStorage.clear();
+    start(probePayload, undefined, { writtenX, ...(save === undefined ? {} : { save }) });
+  };
+
+  /** Hold the zero pass's first pushes, in order, the unit reporting each as given. */
+  const holdFirst = (reports: string[]): void => {
+    for (const report of reports) {
+      const entry = probePayload.stickAssignments.find((item) => item.sector === report);
+      if (!entry) throw new Error(`no key for ${report}`);
+      press(entry.key);
+      vi.advanceTimersByTime(800);
+    }
+  };
+  const openZero = (): void => {
+    pickUnit(1);
+    [...document.querySelectorAll("button")]
+      .find((button) => button.textContent === "Stick zero")
+      ?.click();
+  };
+
+  it("saves no X change from a reversed reading when the unit's probe was not read", () => {
+    const saved: string[] = [];
+    restart(
+      () => null,
+      (_path, content) => saved.push(content),
+    );
+    window.confirm = vi.fn(() => true);
+    pickUnit(1);
+    // One position pressed first: the map cannot be saved from a stick alone.
+    const button = probePayload.assignments.find((item) => item.kind === "button");
+    press(button?.key ?? "");
+    vi.advanceTimersByTime(800);
+    holdAll((push) => MIRROR[push] ?? push);
+    // Each unit has its own Save: this is the right unit's, the second.
+    [...document.querySelectorAll("button")]
+      .filter((control) => control.textContent === "Save its map")
+      .at(1)
+      ?.click();
+    // The map said false and still does; a flip to true would be a guess.
+    expect(saved).toHaveLength(1);
+    for (const content of saved) {
+      expect(content).toMatch(/^stick_invert_x: false$/m);
+      expect(content).not.toMatch(/^stick_invert_x: true$/m);
+    }
+  });
+
+  it("drops readings taken on a probe that has since been put back with another X", () => {
+    let held: boolean | null = null;
+    restart(() => held);
+    openZero();
+    // Seven pushes, the unit mirroring each: left and right are both in.
+    holdFirst(["up", "up_left", "left", "down_left", "down", "down_right", "right"]);
+    expect(Object.keys(stored().sectors ?? {})).toHaveLength(7);
+    expect(notes()).toMatch(/Right stick: X read reversed; not saved/);
+    // The probe is taken off and put back, and now it is known to carry false. Nothing is
+    // judged against it from the old readings.
+    held = false;
+    expect(notes()).toMatch(/Right stick: X read reversed; not saved/);
+    expect(notes()).not.toContain("saving sets it on");
+    // The next push is on the new probe: the old ones are dropped, not carried over.
+    holdFirst(["up_right"]);
+    expect(Object.keys(stored().sectors ?? {})).toEqual(["up_left"]);
+    expect(stored().stickX).toBe(false);
+    expect(document.body.textContent).toContain("were dropped");
+  });
+
+  it("uses what the unit holds, over what the device map would write now", () => {
+    // The payload says false (the map's fact); the probe on the unit was written with true.
+    restart(() => true);
+    pickUnit(1);
+    holdAll((push) => MIRROR[push] ?? push);
+    expect(notes()).toContain("Right stick: X still reversed with Invert X on; saving sets it off");
+  });
+
+  it("says it is not known, and saves no X, when the unit's probe was not read", () => {
+    restart(() => null);
+    pickUnit(1);
+    holdAll((push) => MIRROR[push] ?? push);
+    expect(notes()).toMatch(/Right stick: X read reversed; not saved.*put it back/);
+    expect(notes()).not.toContain("saving sets it");
+    expect(document.querySelector(".note.bad")?.textContent).toContain("not saved");
   });
 });

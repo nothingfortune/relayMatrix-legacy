@@ -52,6 +52,25 @@ export function holdsProbe(unit: ProbeUnit): boolean {
   return unit.slots.some((slot) => isProbeName(slot.name));
 }
 
+/**
+ * The `invertXAxis` the probe on the unit actually carries, read back from the unit's own
+ * slots, or null when it cannot be known: no probe, a probe slot with no keyboard stick
+ * record, or the two passes disagreeing. A result is judged against this and never against
+ * what the page would write now, because a probe put on the unit by an older page, or with a
+ * different device map, is still what the unit runs.
+ */
+export function probeWrittenX(unit: ProbeUnit): boolean | null {
+  const held: boolean[] = [];
+  for (const slot of unit.slots) {
+    if (!isProbeName(slot.name)) continue;
+    const stick = slot.inputs.find((input) => input.stick !== undefined)?.stick;
+    if (stick === undefined) return null;
+    held.push(stick.invertXAxis);
+  }
+  const [first] = held;
+  return first !== undefined && held.every((value) => value === first) ? first : null;
+}
+
 /** Slots a full unit would need freed: how many the press test needs that it has not got. */
 export function slotsShort(unit: ProbeUnit): number {
   const missing = PASSES.filter((pass) => probeSlot(unit, pass) === null).length;
