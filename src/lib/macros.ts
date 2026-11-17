@@ -438,6 +438,24 @@ export function compileMacros(
         clash = true;
       }
     }
+    // The helper swallows a trigger key whatever modifiers are down, so a chord on the same
+    // key (Ctrl+F13 beside a macro on F13) would start the macro and never reach the game.
+    for (const trigger of triggers) {
+      if (trigger.device === "pad") continue;
+      for (const [otherId, other] of Object.entries(actions)) {
+        if (otherId === id || typeof other.kbm !== "string") continue;
+        const parsed = parseKbm(other.kbm);
+        if (parsed === null || parsed.modifiers.length === 0 || parsed.input !== trigger.input) {
+          continue;
+        }
+        problems.push({
+          macro: id,
+          rule: "macro-trigger",
+          message: `${trigger.input} is swallowed from '${otherId}', which is on ${other.kbm}`,
+        });
+        clash = true;
+      }
+    }
     if (clash) continue;
     for (const trigger of triggers) owners.set(sourceOf(trigger), id);
     found.push({

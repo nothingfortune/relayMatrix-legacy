@@ -449,6 +449,23 @@ describe("compileMacros", () => {
     ]);
   });
 
+  it("refuses a trigger key that another action holds with a modifier, which the helper would swallow", () => {
+    const chord = { ...actions, copy: { label: "Copy", kbm: "ControlLeft+F13" } };
+    const only = parseMacros({ macros: { quick: ["KeyB"] } }, "macros.yaml");
+    const { program, problems } = compileMacros(only, chord);
+    expect(program.macros).toEqual([]);
+    expect(problems).toEqual([
+      {
+        macro: "quick",
+        rule: "macro-trigger",
+        message: "F13 is swallowed from 'copy', which is on ControlLeft+F13",
+      },
+    ]);
+    // On another key it is no concern.
+    const apart = { ...actions, copy: { label: "Copy", kbm: "ControlLeft+KeyC" } };
+    expect(compileMacros(only, apart).problems).toEqual([]);
+  });
+
   it("lets a pad button share a name with a key, since they are different buttons", () => {
     const ok = {
       one: { label: "One", pad: "A" },
@@ -478,8 +495,9 @@ describe("trigger keys for a keypad", () => {
   it("counts a keyboard key an action is on as taken, since the helper hears both alike", () => {
     expect(freeTrigger({ a: { kbm: "F13" } })).toBe("F14");
     expect(freeTrigger({ a: { kbm: "F13" }, b: { key: "F14" } })).toBe("F15");
-    // A chord is not a trigger key, so it holds nothing.
-    expect(freeTrigger({ a: { kbm: "ControlLeft+F13" } })).toBe("F13");
+    // The helper hears F13 whatever is held with it, so a chord on F13 holds F13 too.
+    expect(freeTrigger({ a: { kbm: "ControlLeft+F13" } })).toBe("F14");
+    expect(freeTrigger({ a: { kbm: "ControlLeft+KeyR" } })).toBe("F13");
   });
 
   it("counts only actions live together, and a modifier-held key as taken", () => {

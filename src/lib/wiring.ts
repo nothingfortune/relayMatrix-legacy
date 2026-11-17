@@ -137,10 +137,15 @@ export function freeTrigger(
   const taken = new Set<string>();
   for (const spec of Object.values(actions)) {
     if (!live(spec)) continue;
-    // A macro bound to a keyboard key (`kbm`) is heard on the same key as a keypad's, so it
-    // holds that trigger too.
-    for (const value of [spec.key, spec.meta, spec.kbm]) {
+    for (const value of [spec.key, spec.meta]) {
       if (typeof value === "string") taken.add(value);
+    }
+    // The helper hears a trigger key whatever modifiers are down, so a keyboard binding
+    // holds its key, chord or not: Ctrl+F13 would start a macro on F13 in place of reaching
+    // the game.
+    if (typeof spec.kbm === "string") {
+      const parsed = parseKbm(spec.kbm);
+      if (parsed !== null) taken.add(parsed.input);
     }
   }
   return TRIGGER_KEYS.find((key) => !taken.has(key)) ?? null;
