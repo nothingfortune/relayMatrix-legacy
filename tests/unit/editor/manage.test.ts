@@ -197,7 +197,7 @@ describe("managing with unsaved edits", () => {
     );
     control("delete-layout").click();
     await vi.waitFor(() => {
-      expect(document.body.textContent).toContain("could not be saved");
+      expect(document.body.textContent).toContain("Edits not saved");
     });
     expect(calls.map((call) => call.path)).not.toContain("/api/layout/delete");
   });

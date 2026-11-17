@@ -80,7 +80,7 @@ describe("a game whose own settings file is not connected", () => {
     expect(note).not.toBeNull();
     const text = note?.textContent ?? "";
     expect(text).toContain("keeps its own keys");
-    expect(text).toContain("the keys the game already uses");
+    expect(text).toContain("the units send each action's Keyboard binding");
     expect([...(note?.querySelectorAll("li") ?? [])]).toHaveLength(3);
     // In the owner's terms, not the file's.
     expect(text).not.toContain("ingame_config");
@@ -119,7 +119,7 @@ describe("a game whose own settings file is not connected", () => {
       button.textContent.startsWith("Update the game"),
     );
     item?.click();
-    expect(document.querySelector(".save-note")?.textContent).toContain("cannot be written");
+    expect(document.querySelector(".save-note")?.textContent).toContain("Cannot write");
   });
 });
 
@@ -160,7 +160,7 @@ describe("a game whose settings file is not on this computer", () => {
     // The fixture's game.yaml names a file no computer has, which is exactly this case.
     expect(PAYLOAD.games.find((game) => game.slug === "everspace")?.ingameFile?.found).toBe(false);
     open(false);
-    expect(note()).toContain("was not found on this computer");
+    expect(note()).toContain("was not found");
     expect(note()).not.toContain("local.yaml");
     expect(document.querySelector('[data-game-file="path"]')).not.toBeNull();
     expect(buttons()).toContain("Compare with the game's keys");
@@ -272,13 +272,13 @@ describe("the keys a game keeps for itself", () => {
     expect(document.querySelector(".game-keys")?.textContent).toContain("1 action(s)");
     document.querySelector<HTMLButtonElement>("[data-game-keys]")?.click();
     expect(document.querySelector(".save-note")?.textContent).toContain(
-      "1 action(s) now send the game's own key",
+      "1 action(s) now send the game's key",
     );
     expect(document.querySelector("[data-game-keys]")).toBeNull();
     // Boost, and every action with no Keyboard binding, is still on a key the game is not
     // known to have it on, and the tab says so rather than claiming they all agree.
     expect(document.querySelector(".game-keys-left")?.textContent).toContain(
-      "are not sent on a key the game is known to use",
+      "not on a key the game uses",
     );
     const changes = await saved(calls);
     expect(changes.throttle_up).toMatchObject({ key: "Space" });

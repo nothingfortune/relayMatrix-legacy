@@ -170,7 +170,7 @@ describe("the keys on the In-game tab", () => {
     expect(document.querySelector(".ingame-row")).not.toBeNull();
     expect(document.querySelector(".key-chip")).toBeNull();
     expect(document.querySelector(".wiring-note")?.textContent).toContain(
-      "the editor picks for it",
+      "Keys are chosen for you",
     );
     showWiring();
     expect(document.querySelectorAll(".key-chip").length).toBeGreaterThan(10);
@@ -192,7 +192,7 @@ describe("the keys on the In-game tab", () => {
     tab("In-game");
     expect(document.querySelectorAll(".key-chip").length).toBeGreaterThan(10);
     expect(document.querySelector(".wiring-note")?.textContent).toContain(
-      "Set the same keys in the game's own controls screen",
+      "Set the same keys in the game",
     );
   });
 });

@@ -15,8 +15,9 @@ import { findStore } from "../install.js";
 import { loadTemplate } from "../io.js";
 import { loadLocal } from "../machine.js";
 import type { LocalSettings } from "../machine.js";
+import { genreDefaults } from "../defaults.js";
 import { Game, Genre } from "../model.js";
-import { STYLE_ORDER } from "../styles.js";
+import { styleNames } from "../styles.js";
 
 const DEFAULT_TEMPLATE = join(dataDirs.templates, "everspace2-v5.json");
 
@@ -79,6 +80,10 @@ export function buildPayload(local: LocalSettings = loadLocal()): EditorPayload 
       setsText: existsSync(repoPath(join(game.rel, "sets.yaml")))
         ? readFileSync(repoPath(join(game.rel, "sets.yaml")), "utf8")
         : "",
+      macros: game.macros,
+      macrosText: existsSync(repoPath(join(game.rel, "macros.yaml")))
+        ? readFileSync(repoPath(join(game.rel, "macros.yaml")), "utf8")
+        : "",
       ...(game.config.ingame_set === undefined ? {} : { ingameSet: game.config.ingame_set }),
       ingameFile: {
         configured: game.places.ingame_config.from !== null,
@@ -98,13 +103,15 @@ export function buildPayload(local: LocalSettings = loadLocal()): EditorPayload 
         duplicate_key_allowlist: genre.actions.duplicateKeyAllowlist,
       } satisfies ActionSetData,
       default: genre.config,
+      defaults: genreDefaults({
+        genre: genre.name,
+        actions: genre.actions.actions,
+        defaults: genre.config.positions,
+        styles: genre.styles,
+        modes: stickModes,
+      }),
       ...(stickModes ? { stickModes } : {}),
-      styles: [
-        ...STYLE_ORDER.filter((name) => name in genre.styles),
-        ...Object.keys(genre.styles).filter(
-          (name) => !(STYLE_ORDER as readonly string[]).includes(name),
-        ),
-      ].map((name) => ({
+      styles: styleNames(genre.styles).map((name) => ({
         name,
         label: genre.styles[name]?.label ?? name,
         note: genre.styles[name]?.note ?? "",

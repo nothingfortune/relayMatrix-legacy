@@ -48,6 +48,7 @@ import { checkFileName } from "./lib/scaffold.js";
 import { addActions, patchActionBindings, removeActions } from "./lib/actionfile.js";
 import { openInChromium } from "./lib/browser.js";
 import { isWsl, setLocalGamePath } from "./lib/machine.js";
+import { askOnTerminal, helperCommand } from "./lib/helper-cli.js";
 import type { BindingChange } from "./lib/actionfile.js";
 import {
   CONTENT_TYPES,
@@ -65,6 +66,7 @@ import {
 } from "./lib/serve.js";
 import {
   buildAll,
+  buildMacroProgram,
   createGame,
   startGame,
   startLayout,
@@ -76,6 +78,7 @@ import {
   renameLayout,
   deviceNames,
   nameUnit,
+  swapUnits,
   ImportCollision,
   importExport,
   applyIngame,
@@ -88,9 +91,10 @@ import {
   profilePathFor,
   templatePathFor,
 } from "./lib/tasks.js";
-import type { SaveCheck } from "./lib/tasks.js";
+import type { BuiltProfile, SaveCheck } from "./lib/tasks.js";
 import type { UnitsReport } from "./lib/units.js";
 import type { ExportDocument } from "./types/azeron.js";
+import { defaultsReport } from "./lib/defaults.js";
 import { ERROR, WARNING, formatFinding, lintGame, lintGenre } from "./lib/lint.js";
 import type { LintResult } from "./lib/lint.js";
 import { Game, Genre } from "./lib/model.js";
@@ -167,8 +171,32 @@ function cmdBuild(selector: string | undefined, check: boolean): number {
         out(`           -> ${target}`);
       }
     }
+    failures += buildMacros(game, check);
   }
   return failures > 0 ? 1 : 0;
+}
+
+/**
+ * A game's macros, compiled or checked the way its profiles are: written to
+ * dist/<game>/macros.json, or reported stale under --check. Returns how many failed.
+ */
+function buildMacros(game: Game, check: boolean): number {
+  const built: BuiltProfile[] = [];
+  const errors: string[] = [];
+  buildMacroProgram(game, check, built, errors);
+  for (const message of errors) {
+    if (message.startsWith("stale:")) out(message);
+    else
+      process.stderr.write(`error: ${message}
+`);
+  }
+  if (!check) {
+    for (const entry of built) {
+      const gone = !existsSync(repoPath(entry.output));
+      out(`${gone ? "removed  " : entry.changed ? "wrote    " : "unchanged"} ${entry.output}`);
+    }
+  }
+  return errors.length;
 }
 
 function report(label: string, result: LintResult, strict: boolean, showAcked: boolean): number {
@@ -201,6 +229,19 @@ function cmdLint(selector: string | undefined, strict: boolean, showAcked: boole
     worst |= report(game.slug, lintGame(game), strict, showAcked);
   }
   return worst;
+}
+
+/** `azeron defaults`: a genre's Xbox pad and how it lays out the pair, with nothing started. */
+function cmdDefaults(genre: string | undefined, style: string | undefined): number {
+  const inputs = Genre.discover().map((entry) => ({
+    genre: entry.name,
+    actions: entry.actions.actions,
+    defaults: entry.config.positions,
+    styles: entry.styles,
+    modes: entry.stickModes,
+  }));
+  out(defaultsReport(inputs, genre, style));
+  return 0;
 }
 
 function cmdRoundtrip(selector: string | undefined): number {
@@ -759,6 +800,28 @@ function cmdServe(port: number, host: string, open = false): number {
       });
       return;
     }
+    if (request.method === "POST" && url === "/api/local/swap") {
+      // Two hands named for the wrong units: exchange their ids in local.yaml.
+      readBody(request, response, 1_000, (body) => {
+        try {
+          const parsed = JSON.parse(body) as { a?: unknown; b?: unknown };
+          if (typeof parsed.a !== "string" || typeof parsed.b !== "string") {
+            throw new Error("send {a, b}, the two device maps, both strings");
+          }
+          const swapped = swapUnits(parsed.a, parsed.b);
+          appendLog(
+            "units.log",
+            `${new Date().toISOString()} swapped hands: ${Object.entries(swapped.ids)
+              .map(([device, id]) => `${device} is now unit ${id}`)
+              .join(", ")}\n`,
+          );
+          send(200, JSON.stringify({ ok: true, ...swapped }));
+        } catch (error) {
+          send(400, JSON.stringify({ ok: false, error: messageOf(error) }));
+        }
+      });
+      return;
+    }
     if (request.method === "POST" && url === "/api/units/written") {
       // A write the page made straight to a unit and read back clean, so the units report
       // stops asking for an import the unit no longer needs.
@@ -1136,6 +1199,36 @@ function cmdServe(port: number, host: string, open = false): number {
   return 0;
 }
 
+/** `azeron helper ...`: the refusals answer at once, a started helper holds the process. */
+function cmdHelper(sub: string | undefined, selector: string | undefined, yes: boolean): number {
+  void helperCommand(
+    sub,
+    selector,
+    { yes },
+    {
+      out,
+      fail: (line) =>
+        process.stderr.write(`${line}
+`),
+      games,
+      host: { platform: process.platform, wsl: isWsl() },
+      interactive: process.stdin.isTTY,
+      ask: askOnTerminal,
+      signals: ["SIGINT", "SIGTERM"],
+    },
+  ).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error: unknown) => {
+      process.stderr.write(`error: ${messageOf(error)}
+`);
+      process.exitCode = 1;
+    },
+  );
+  return 0;
+}
+
 /** Stop the editor server on `port`. The exit code is set once the server has answered. */
 function cmdStop(port: number, host: string | undefined): number {
   void stopServer(port, host === undefined ? {} : { hosts: [host] }).then((result) => {
@@ -1487,6 +1580,8 @@ function usage(): void {
   ingame [game] --candidate pedal_axis=NAME [--set S]
                                   write a name to try by hand, marked UNTESTED, for a pedal
                                   axis the game's own controls screen will not bind
+  defaults [genre] [--style S]    a genre's Xbox pad, control by control, and how it lays
+                                  out the pair; with no genre, what each offers
   editor [--out PATH]             the editor as one self-contained HTML file
   serve [--port N] [--host H] [--open]
                                   the same editor, able to save back into the repo; it
@@ -1495,6 +1590,10 @@ function usage(): void {
   stop [--port N] [--host H]      stop the editor server on that port (default 4173), the one
                                   serve started; looks on 127.0.0.1 and ::1 unless --host
                                   names where it was started; says so when nothing is there
+  helper start [game] [--yes]     type a game's macros from a Windows process: it swallows the
+                                  buttons that start them; needs macros: {helper: true} in the
+                                  game's game.yaml; Ctrl-C or Ctrl+Alt+Pause stops it
+  helper stop | status            end a running helper from another terminal / say if one runs
   probe [--device D]              the press test's profiles, as files; the test itself
                                   runs from the editor's Press test tab
   new <name> --genre G [--units left,right] [--set S] [--game SLUG]
@@ -1588,6 +1687,8 @@ export function main(argv: string[]): number {
       return cmdBuild(positionals[0], values.check);
     case "lint":
       return cmdLint(positionals[0], values.strict, values["show-acknowledged"]);
+    case "defaults":
+      return cmdDefaults(positionals[0], values.style);
     case "roundtrip":
       return cmdRoundtrip(positionals[0]);
     case "bindings":
@@ -1611,6 +1712,8 @@ export function main(argv: string[]): number {
       );
     case "stop":
       return cmdStop(wholeNumber("--port", values.port ?? "4173"), values.host);
+    case "helper":
+      return cmdHelper(positionals[0], positionals[1], values.yes);
     case "editor":
       return cmdEditor(values.out ?? join(dataDirs.dist, "editor.html"));
     case "probe": {

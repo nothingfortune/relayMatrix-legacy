@@ -121,6 +121,45 @@ describe("compareUnit", () => {
     expect(row?.app).toContain("tuned:");
   });
 
+  it("names an inversion, the angle and the switches the app's copy holds otherwise", () => {
+    // The right unit's old import: X inverted, where the layout now writes it as it is.
+    const app = structuredClone(compiled("right"));
+    const layout = structuredClone(compiled("right"));
+    const held = record(app, 31).analogSettings;
+    const wanted = record(layout, 31).analogSettings;
+    if (!held || !wanted) throw new Error("no stick");
+    held.invertXAxis = true;
+    wanted.invertXAxis = false;
+    wanted.angle = 150;
+    held.isAngleLock = true;
+    const [row] = compareUnit(layout, app, right.device, game.actions);
+    expect(row?.layout).toContain("invert X off");
+    expect(row?.app).toContain("invert X on");
+    expect(row?.layout).toContain("angle 150");
+    expect(row?.app).toContain("angle lock on");
+  });
+
+  it("sees the key a held stick sends, spelled either way the app keeps it", () => {
+    const app = structuredClone(compiled("right"));
+    const layout = structuredClone(compiled("right"));
+    const held = record(app, 31).analogSettings;
+    const wanted = record(layout, 31).analogSettings;
+    if (!held || !wanted) throw new Error("no stick");
+    held.isHoldTrigger = true;
+    wanted.isHoldTrigger = true;
+    held.holdType = "1";
+    wanted.holdType = "1";
+    // The same key, as a legacy code on one side and its name on the other: no difference.
+    held.holdKeyValues = ["38", "0", "0"];
+    wanted.holdKeyValues = ["ArrowUp", "0", "0"];
+    expect(compareUnit(layout, app, right.device, game.actions)).toEqual([]);
+    // Another key: the stick still sends the old one.
+    wanted.holdKeyValues = ["KeyF", "0", "0"];
+    const [row] = compareUnit(layout, app, right.device, game.actions);
+    expect(row?.layout).toContain("hold key KeyF");
+    expect(row?.app).toContain("hold key ArrowUp");
+  });
+
   it("does not call a setting the app's copy lacks a difference", () => {
     const app = structuredClone(compiled("right"));
     const layout = structuredClone(compiled("right"));

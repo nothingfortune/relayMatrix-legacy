@@ -9,10 +9,13 @@
 #             left unit, banks of abilities and weapons under the fingers, and `right` below
 #             on the other.
 #
+# The pad's own mapping is the `xbox:` column of actions.yaml, drawn by `azeron defaults FPS`
+# and the editor's Setup tab. Every control has an action, and these have none, so the
+# keys below carry them: prone, dive, weapons 1 to 3, the previous weapon, abilities 2 to 4,
+# equipment 2, the flashlight, push to talk, and the map, inventory and emote wheel.
+#
 # With no mouse, firing and aiming come off a key: `actions` says what the new game's
 # actions.yaml gives them. Tap only everywhere, as in default.yaml (constraints 4 and 6).
-# `acknowledge` lists the positions the two hands use for different jobs on purpose;
-# each goes into the new game's lint.acknowledged with its reason.
 controller:
   label: Like a controller
   note: >-
@@ -21,9 +24,6 @@ controller:
   actions:
     fire_primary: {provided_by: null, mouse: left}
     aim: {provided_by: null, mouse: right}
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     index_1: {label: Prone, tap: prone}
     index_4: {label: Dive / dodge, tap: dive}
@@ -32,6 +32,7 @@ controller:
     middle_4: {label: Sidearm, tap: weapon_3}
     ring_3: {label: Equipment 2, tap: equipment_2}
     pinky_3: {label: Push to talk, tap: push_to_talk}
+    pinky_side: {label: Flashlight, tap: flashlight}
     index_5: {label: Map, tap: map}
     middle_5: {label: Inventory, tap: inventory}
     ring_5: {label: Emote wheel, tap: emote}
@@ -40,7 +41,6 @@ controller:
     middle_3: {label: Ability 3, tap: ability_3}
     middle_4: {label: Ability 4, tap: ability_4}
     ring_3: {label: Previous weapon, tap: weapon_prev}
-    pinky_3: {label: Interact, tap: interact}
 
 keyboard:
   label: Like a keyboard

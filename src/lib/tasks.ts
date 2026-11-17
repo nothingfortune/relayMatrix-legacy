@@ -48,7 +48,7 @@ import {
   loadTemplate,
   writeText,
 } from "./io.js";
-import { buildStyle, STYLE_ORDER } from "./styles.js";
+import { buildStyle, styleNames } from "./styles.js";
 import { currentWrite, layoutFingerprint } from "./written.js";
 import type { LoadedPedals } from "./io.js";
 import { capturePedals, ingamePlan, parseSets, planAxes, recordCandidateNames } from "./pedals.js";
@@ -57,7 +57,8 @@ import type { StickModeSet } from "./stickmodes.js";
 import type { NameStatus } from "../types/pedals.js";
 import { ERROR, WARNING, formatFinding, lintGame, lintGenre } from "./lint.js";
 import type { Finding, LintResult } from "./lint.js";
-import { setLocalDeviceId, setLocalGamePath } from "./machine.js";
+import { loadLocal, setLocalDeviceId, setLocalDeviceIds, setLocalGamePath } from "./machine.js";
+import { compileMacros, dumpMacros } from "./macros.js";
 import type { MachinePathField } from "./machine.js";
 import { Game, Genre } from "./model.js";
 import type { Profile } from "./model-core.js";
@@ -145,8 +146,50 @@ export function buildAll(games: readonly Game[], check = false): BuildResult {
       }
       built.push(entry);
     }
+    buildMacroProgram(game, check, built, errors);
   }
   return { built, errors };
+}
+
+/**
+ * A game's macros compiled into dist/<game>/macros.json, which the helper runs. A game with
+ * none has no file; one left behind by macros since deleted is stale (checked) or removed.
+ */
+export function buildMacroProgram(
+  game: Game,
+  check: boolean,
+  built: BuiltProfile[],
+  errors: string[],
+): void {
+  const outPath = posixJoin(game.distDir(), "macros.json");
+  const exists = existsSync(repoPath(outPath));
+  const source = posixJoin(game.rel, "macros.yaml");
+  if (Object.keys(game.macros.macros).length === 0) {
+    if (!exists) return;
+    if (check) {
+      errors.push(`stale: ${outPath} has no macros in ${source}`);
+      built.push({ profile: source, output: outPath, changed: true });
+    } else {
+      rmSync(repoPath(outPath), { force: true });
+      built.push({ profile: source, output: outPath, changed: true });
+    }
+    return;
+  }
+  const { program, problems } = compileMacros(game.macros, game.actions.actions);
+  if (problems.length > 0) {
+    for (const problem of problems) {
+      errors.push(`${source}: ${problem.macro}: ${problem.message}`);
+    }
+    return;
+  }
+  const text = dumpMacros(program);
+  const changed = !exists || readFileSync(repoPath(outPath), "utf8") !== text;
+  if (check) {
+    if (changed) errors.push(`stale: ${outPath} does not match ${source}`);
+  } else if (changed) {
+    writeText(outPath, text);
+  }
+  built.push({ profile: source, output: outPath, changed });
 }
 
 export interface LintSummary {
@@ -330,6 +373,31 @@ export function nameUnit(device: string, id: string): string {
     throw new ScaffoldError(`no keypad device map called '${device}' in devices/`);
   }
   return setLocalDeviceId(device, id);
+}
+
+/**
+ * Exchange the ids of two hands: the unit that was the left becomes the right and the other
+ * way round, in local.yaml, both at once. For the day a unit was named for the wrong hand.
+ * Nothing is sent to a unit; the next write goes where the ids now say.
+ */
+export function swapUnits(a: string, b: string): { file: string; ids: Record<string, string> } {
+  const names = deviceNames();
+  for (const name of [a, b]) {
+    if (!names.includes(name)) throw new ScaffoldError(`no keypad device map called '${name}'`);
+  }
+  if (a === b) throw new ScaffoldError("a swap needs two different hands");
+  const local = loadLocal();
+  const idOf = (name: string): string => {
+    const id = loadDevice(name, local).softwareDeviceId;
+    if (id === undefined || id === "") {
+      throw new ScaffoldError(`'${name}' has no unit id yet, so there is nothing to swap`);
+    }
+    return id;
+  };
+  const idA = idOf(a);
+  const idB = idOf(b);
+  const ids = { [a]: idB, [b]: idA };
+  return { file: setLocalDeviceIds(ids), ids };
 }
 
 /**
@@ -606,9 +674,7 @@ export function startGame(request: StartGameRequest): StartGameResult {
   if (!paired && request.style !== undefined) {
     throw new ScaffoldError("a style lays out both units: choose the left unit and the right one");
   }
-  const styleName = !paired
-    ? null
-    : (request.style ?? STYLE_ORDER.find((name) => name in genre.styles) ?? null);
+  const styleName = !paired ? null : (request.style ?? styleNames(genre.styles)[0] ?? null);
   const style = styleName === null ? undefined : genre.styles[styleName];
   if (styleName !== null && style === undefined) {
     const have = Object.keys(genre.styles);
@@ -751,7 +817,10 @@ export function startGame(request: StartGameRequest): StartGameResult {
           removeKey(spec.directions, direction);
         }
       }
+      // A stick in another mode than keys (the pointer) holds nothing and is still the layout.
+      const otherMode = spec.mode !== undefined && spec.mode !== "keyboard";
       if (
+        !otherMode &&
         !SLOTS.some((slot) => spec[slot] !== undefined) &&
         Object.keys(spec.directions ?? {}).length === 0
       ) {
@@ -812,30 +881,6 @@ export function startGame(request: StartGameRequest): StartGameResult {
     });
     if (!existsSync(repoPath(posixJoin(gameDir, "playtests.md")))) {
       writeText(posixJoin(gameDir, "playtests.md"), `# ${name} playtests\n`);
-    }
-    // A style that has the two hands do different jobs on purpose -- a pad's d-pad against
-    // its A B X Y -- says so, and each position the checks would raise is acknowledged with
-    // that reason. Only those the checks raise, so none is stale from the start.
-    const meant = built?.acknowledge;
-    if (meant) {
-      const raised = lintGame(new Game(gameDir)).live.filter(
-        (finding) =>
-          finding.rule === "akimbo-role-mismatch" &&
-          finding.position !== undefined &&
-          meant.positions.includes(finding.position),
-      );
-      if (raised.length > 0) {
-        config.lint = {
-          ...config.lint,
-          acknowledged: raised.map((finding) => ({
-            rule: finding.rule,
-            profile: set,
-            ...(finding.position === undefined ? {} : { position: finding.position }),
-            reason: meant.reason,
-          })),
-        };
-        writeConfig();
-      }
     }
     const wired = Object.values(keys).filter((spec) => spec.key !== undefined).length;
     return {

@@ -1,5 +1,9 @@
 # What a new action game starts with: a pair of units, in one of two styles. See
 # genres/FPS/layouts.yaml for what each part means.
+#
+# The pad's own mapping is the `xbox:` column of actions.yaml (`azeron defaults Action`).
+# It has no control for crouch, mount, throw, abilities 1 and 2, weapons 1 to 4, sense,
+# inventory, journal, character or the quick save and load, so the keys below carry them.
 controller:
   label: Like a controller
   note: >-
@@ -8,9 +12,6 @@ controller:
   actions:
     attack: {provided_by: null, mouse: left}
     aim: {provided_by: null, mouse: right}
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     index_1: {label: Ability 1, tap: ability_1}
     index_4: {label: Ability 2, tap: ability_2}

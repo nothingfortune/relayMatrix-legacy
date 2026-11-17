@@ -57,9 +57,9 @@ actions:
   stim:           {label: Stim / heal, keyboard: KeyH, xbox: DpadDown, tags: [combat]}
 
   # --- utility ------------------------------------------------------------------
-  interact:       {label: Interact / use, keyboard: KeyE, tags: [utility, required]}
-  ping:           {label: Ping / mark, keyboard: MouseMiddle, xbox: DpadUp, tags: [utility]}
-  flashlight:     {label: Flashlight, keyboard: KeyF, xbox: DpadLeft, tags: [utility]}
+  interact:       {label: Interact / use, keyboard: KeyE, xbox: DpadUp, tags: [utility, required]}
+  ping:           {label: Ping / mark, keyboard: MouseMiddle, xbox: DpadLeft, tags: [utility]}
+  flashlight:     {label: Flashlight, keyboard: KeyF, tags: [utility]}
   push_to_talk:   {label: Push to talk, keyboard: KeyT, tags: [utility]}
 
   # --- menus --------------------------------------------------------------------

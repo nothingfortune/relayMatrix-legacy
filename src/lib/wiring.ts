@@ -21,6 +21,7 @@
 import type { ActionSpec } from "../types/profile.js";
 import { isMouseToken, parseKbm } from "./controls.js";
 import { ANALOG_KEYCODES, isModifier } from "./keys.js";
+import { TRIGGER_KEYS } from "./macros.js";
 import { actionsLiveTogether, type LiveTogether } from "./modes.js";
 
 /**
@@ -122,6 +123,49 @@ export function freeKey(
     }
   }
   return WIRE_POOL.find((key) => !taken.has(key) && usable(key)) ?? null;
+}
+
+/**
+ * The first trigger key (F13-F24) no live action is on, for a macro. A trigger is typed by
+ * nothing but the unit and heard by nothing but the helper, so the game's file never needs
+ * a name for it.
+ */
+export function freeTrigger(
+  actions: Readonly<Record<string, ActionSpec>>,
+  live: (other: ActionSpec) => boolean = () => true,
+): string | null {
+  const taken = new Set<string>();
+  for (const spec of Object.values(actions)) {
+    if (!live(spec)) continue;
+    for (const value of [spec.key, spec.meta]) {
+      if (typeof value === "string") taken.add(value);
+    }
+    // The helper hears a trigger key whatever modifiers are down, so a keyboard binding
+    // holds its key, chord or not: Ctrl+F13 would start a macro on F13 in place of reaching
+    // the game.
+    if (typeof spec.kbm === "string") {
+      const parsed = parseKbm(spec.kbm);
+      if (parsed !== null) taken.add(parsed.input);
+    }
+  }
+  return TRIGGER_KEYS.find((key) => !taken.has(key)) ?? null;
+}
+
+/**
+ * Give a macro's action a trigger if it has no key. Returns the key, or null when it needed
+ * none or no trigger was left. `actions` is changed in place.
+ */
+export function wireTrigger(
+  actions: Record<string, ActionSpec>,
+  id: string,
+  live?: (other: ActionSpec) => boolean,
+): string | null {
+  const spec = actions[id];
+  if (!needsWire(spec) || spec === undefined) return null;
+  const key = freeTrigger(actions, live);
+  if (key === null) return null;
+  actions[id] = { ...spec, key };
+  return key;
 }
 
 /**

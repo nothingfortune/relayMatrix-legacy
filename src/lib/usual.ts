@@ -34,6 +34,11 @@ export interface UsualBinding {
 export function usualBindings(
   actions: Readonly<Record<string, ActionSpec>>,
   live: LiveTogether = () => true,
+  /**
+   * Actions that are given nothing: a macro's `kbm` and `pad` are the buttons that start it,
+   * and a suggestion would start it from one nobody chose.
+   */
+  skip: ReadonlySet<string> = new Set(),
 ): Record<string, UsualBinding> {
   const added: Record<string, UsualBinding> = {};
   /** What an action is on, as the game would see it, for one kind of binding. */
@@ -50,6 +55,7 @@ export function usualBindings(
     return held;
   };
   for (const [id, spec] of Object.entries(actions)) {
+    if (skip.has(id)) continue;
     const free = (field: "kbm" | "pad", value: string): boolean =>
       !Object.entries(actions).some(
         ([otherId, other]) =>

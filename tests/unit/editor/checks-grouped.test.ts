@@ -70,7 +70,7 @@ describe("required actions that are on no key", () => {
     const listed = [...(group?.querySelectorAll("li") ?? [])].map((item) => item.textContent);
     expect(listed.sort()).toEqual([...names].sort());
     // Said once, in words the owner can act on.
-    expect(group?.textContent).toContain("Edit tab");
+    expect(group?.textContent).toContain("Place each");
   });
 
   it("counts them once in the header chip, and says what they are", () => {
@@ -78,7 +78,7 @@ describe("required actions that are on no key", () => {
     // One entry, not four; the tooltip says what it is.
     expect(lintChip()).toBe("1 to look at");
     expect(document.querySelector("header .pill.lint")?.getAttribute("title")).toContain(
-      "4 required action(s) are not on any key yet",
+      "4 required action(s) not on any key",
     );
     expect(document.querySelector("header .pill.lint")?.classList.contains("bad")).toBe(true);
   });

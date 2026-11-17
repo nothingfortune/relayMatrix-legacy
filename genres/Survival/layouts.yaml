@@ -1,5 +1,9 @@
 # What a new survival game starts with: a pair of units, in one of two styles. See
 # genres/FPS/layouts.yaml for what each part means.
+#
+# The pad's own mapping is the `xbox:` column of actions.yaml (`azeron defaults Survival`).
+# It has no control for the hotbar slots, holster, deconstruct, rotate, drop, push to talk,
+# crafting, map, journal or quick save, so the keys below carry them.
 controller:
   label: Like a controller
   note: >-
@@ -8,9 +12,6 @@ controller:
   actions:
     use_tool: {provided_by: null, mouse: left}
     alt_use: {provided_by: null, mouse: right}
-  acknowledge:
-    reason: The thumb pads are a pad's d-pad and its A B X Y, which do different jobs.
-    positions: [dpad_up, dpad_down, dpad_left, dpad_right, stick_press, thumb_aux_upper]
   left:
     middle_2: {label: Hotbar 1, tap: hotbar_1}
     middle_3: {label: Hotbar 2, tap: hotbar_2}

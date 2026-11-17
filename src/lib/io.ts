@@ -22,6 +22,8 @@ import type { LocalSettings } from "./machine.js";
 import { normalizeProfileData } from "./normalize.js";
 import { forgetSlot, parseDirectWrites, recordWrite } from "./written.js";
 import type { DirectWrite, DirectWrites } from "./written.js";
+import { parseMacros } from "./macros.js";
+import type { MacrosData } from "./macros.js";
 import { parsePedalsDevice, parseSets } from "./pedals.js";
 import { StickModeError, validateStickModes } from "./stickmodes.js";
 import type { StickModeSet } from "./stickmodes.js";
@@ -80,6 +82,13 @@ export function loadSets(gameRel: string): SetsData {
   const path = join(gameRel, "sets.yaml");
   if (!existsSync(repoPath(path))) return { sets: {} };
   return parseSets(loadYaml(path), path);
+}
+
+/** A game's macros, or none when it has no macros.yaml. */
+export function loadMacros(gameRel: string): MacrosData {
+  const path = join(gameRel, "macros.yaml");
+  if (!existsSync(repoPath(path))) return { macros: {} };
+  return parseMacros(loadYaml(path), path);
 }
 
 /** A genre's stick modes, validated, or undefined when it defines none. */

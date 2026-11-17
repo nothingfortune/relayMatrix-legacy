@@ -32,6 +32,8 @@ export class Device {
   readonly template: string | undefined;
   readonly stickDirections: Partial<Record<StickDirection, StickDirection>>;
   readonly stickAngle: number | undefined;
+  /** The mode's X inversion this unit's map asks for, where a layout does not say. */
+  readonly stickInvertX: Partial<Record<string, boolean>>;
   readonly unknownPins: ReadonlySet<number>;
   readonly positions: Record<string, DevicePosition>;
   readonly pinByPosition: Record<string, number>;
@@ -50,6 +52,14 @@ export class Device {
     this.hasSensor = data.sensor !== false;
     this.stickDirections = data.stick_directions ?? {};
     this.stickAngle = data.stick_angle;
+    this.stickInvertX = data.stick_invert_x ?? {};
+    for (const [mode, value] of Object.entries(this.stickInvertX)) {
+      if (!["keyboard", "mouse", "xbox"].includes(mode) || typeof value !== "boolean") {
+        throw new Error(
+          `${data.device}: stick_invert_x.${mode} must be true or false, for keyboard, mouse or xbox`,
+        );
+      }
+    }
     this.unknownPins = new Set(data.unknown_pins ?? []);
     this.positions = data.positions;
     this.pinByPosition = Object.fromEntries(

@@ -65,7 +65,7 @@ describe("the live key tester", () => {
   it("lights the control a key comes from while it is held, and says what it is", () => {
     const { position, code } = plainKey();
     header(/^Test keys$/).click();
-    expect(strip()).toContain("Press every control on the units, in any order");
+    expect(strip()).toContain("Press each control, in any order");
     key(code, "keydown");
     const lit = document
       .querySelectorAll(".hand")[0]

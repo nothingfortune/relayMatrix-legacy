@@ -53,3 +53,10 @@ actions:
   map:              {key: Tab}
   emote:            {key: KeyB, label: Emote}
   menu_main:        {key: Escape, note: "Ctrl+Escape is the Windows Start menu: let go of the stratagem key first."}
+  up: {label: "↑ Up", key: ArrowUp}
+  down: {label: "↓ Down", key: ArrowDown}
+  left: {label: "← Left", key: ArrowLeft}
+  right: {label: "→ Right", key: ArrowRight}
+  inventory: {key: Insert}
+  fire_primary: {kbm: MouseLeft, provided_by: null, mouse: left}
+  aim: {kbm: MouseRight, provided_by: null, mouse: right}

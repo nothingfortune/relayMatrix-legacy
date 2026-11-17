@@ -89,6 +89,7 @@ output, so `npm run build` first:
 | `azeron build [game] [--check]`                     | compile profile YAML into `dist/`                                              |
 | `azeron lint [game] [--strict]`                     | the constraint rules; `--show-acknowledged` too                                |
 | `azeron roundtrip [game]`                           | golden profiles must rebuild their template exactly                            |
+| `azeron defaults [genre] [--style S]`               | a genre's Xbox pad and layouts, drawn with nothing started                     |
 | `azeron bindings [game]`                            | the in-game key list, to check against the game                                |
 | `azeron units [game] [--set S]`                     | whether the Azeron app has each layout as it is now, and which keys differ     |
 | `azeron ingame [game] [--apply]`                    | compare the game's `Input.ini`; `--apply` rewrites it                          |
@@ -96,6 +97,7 @@ output, so `npm run build` first:
 | `azeron ingame [game] --candidate axis=NAME`        | write a hand-written pedal name (a candidate)                                  |
 | `azeron serve [--port N] [--host H] [--open]`       | the editor, able to save back into the repo; `--open` starts Chrome or Edge    |
 | `azeron stop [--port N]`                            | stop the editor server on that port (default 4173)                             |
+| `azeron helper start [game] [--yes]`                | type a game's macros from a Windows process; `stop`, `status`                  |
 | `azeron editor`                                     | the side-by-side editor, one self-contained HTML                               |
 | `azeron probe [--device D]`                         | the press test's profiles as files; the test runs from the editor's Press test |
 | `azeron new <name> --genre G [--units left,right]`  | a game with no export; `--style controller                                     | keyboard`, `--pedals D` |
@@ -146,9 +148,7 @@ Three inputs meet in the compiler, and are kept separate:
    its with-pedals variant when the layout gets pedals (`pedals:`, offered only where the
    genre's stick modes have `pedals.takes`; the centred axis drives it, into `sets.yaml`),
    may override actions in the new `actions.yaml` (`provided_by: null` + `mouse: left` for
-   a shooter's trigger), and lists `acknowledge` positions: the pad's split thumbs, written
-   into `lint.acknowledged` only where the checks actually raise them. One unit on its own
-   gets `default.yaml` on its hand, as before. Every action placed is wired with the
+   a shooter's trigger). One unit on its own gets `default.yaml` on its hand, as before. Every action placed is wired with the
    editor's own `wireAction`, required actions first. What the pool cannot carry is taken off its control and
    reported (`leftOff`), never placed sending nothing. `startLayout` (`azeron layout`, Add
    a layout) makes a layout as a copy of another (its `sets.yaml` entry too, modes and pedals, through
@@ -182,11 +182,23 @@ Three inputs meet in the compiler, and are kept separate:
    `subType`, analog tuning, the records for unidentified pins) survive untouched.
 
 **The genres** are FPS, SpaceSims, Flight, Action (third person), Survival, Mech, RPG and
-Strategy, chosen to cover the owner's library rather than one per game. RPG and Strategy
-are played with a mouse, so they have no `xbox:` controls and no `layouts.yaml`: a layout
-is one unit beside the mouse, and a second unit starts empty. A new genre is checked by
-starting a game from it in a scratch `AZERON_DATA` (one unit, and a pair in each style) and
-linting it `--strict`; no test reads the real `genres/`.
+Strategy, chosen to cover the owner's library rather than one per game. Every genre has a
+pad mapping (the `xbox:` column of its actions.yaml) and a `controller` style laid from it,
+RPG and Strategy included. They are played with a mouse, so their `keyboard` style is the
+`default: true` one (`styleNames`): a pair still starts as the one-unit layout on the left
+and the right empty, and the controller style is chosen. Their pad walks the party (RPG) or
+points with the left stick in mouse mode (Strategy), and sends the mouse's buttons from A,
+B and X. A pad has sixteen buttons, so each genre leaves some actions on no control
+(`azeron defaults <genre>` lists them); the controller style carries those on the units'
+fingers, the one place the pair and the pad differ. `lintGenre` errors on an `xbox:` that is not a pad
+control, two actions on one control and a style that will not build, and warns on a menu on
+a button play presses. The defaults are drawn without starting a game: `azeron defaults
+[genre] [--style S]`, and the Setup tab's Defaults view (`src/lib/defaults.ts`, built with
+`buildStyle` as a new game is, carried in `payload.genres[].defaults`;
+`src/editor/defaults-view.ts` draws it). A new genre is checked by starting a game from it
+in a scratch `AZERON_DATA` (one unit, and a pair in each style) and linting it `--strict`;
+`tests/unit/lib/genre-pads.test.ts` does that for all eight against a frozen copy
+(`tests/fixtures/defaults`); no test reads the real `genres/`.
 
 Profiles map position to action id, never position to raw key.
 
@@ -250,6 +262,30 @@ RC throttle is vertical, pitch is thrust, roll is strafe, and yaw is yaw — and
 `mode2_roll` and `twin_stick` cover roll on a stick and the game's own gamepad layout. A
 ship has six axes and two thumbs (the d-pad is under the same thumb as the stick), so
 which four go on the sticks is a choice; roll is not a stand-in for yaw.
+
+**Macros: one button, a list of keys, typed by a helper.** The units store none of a macro (the app
+types it), so a macro is an action whose list of keys lives in the game's `macros.yaml`
+(`src/lib/macros.ts`: `abc: [KeyA, KeyB, KeyC]`, a bare key is a tap, `hold` and `gap` default to
+30 ms). Any of the action's buttons starts it: its `key` (a keypad trigger, F13-F24,
+`wireTrigger`), its `kbm` (one plain key) or its `pad` (a controller button). `azeron build`
+compiles them to `dist/<game>/macros.json`, a gated fixed point; `macro-invalid` and
+`macro-trigger` are errors. `MacroRunner` (`macrorun.ts`) types a program behind `MacroIo`; tests use
+a fake, never a real keyboard. The unit's own press reports (`BTN_POS`) are not used: no capture
+of what asks for them exists. See `docs/plans/macros.md`.
+The editor's Macros panel (`src/editor/macros-panel.ts`, rules in `macros-model.ts`) is on the In-game
+tab: `macrosPart()` saves `macros.yaml` (`patchMacro` in `macros-file.ts` keeps its comments) after the
+actions. A macro's action is a trigger, never a game key: `wire()` gives it `wireTrigger`, and
+`useGameKeys`, `usualBindings` and `canDeleteAction` skip it.
+
+**The helper** (`azeron helper start | stop | status`, `helper*.ts`) is the Windows half: PowerShell +
+C# (`helper-script.ts`, text; a keyboard hook, XInput, `SendInput` with scan codes from
+`helper-keys.ts`) behind a line-JSON protocol (`helper.ts`, `HelperSession`: the runner is
+TypeScript and the process is a thin bridge). A game opts in with `macros: {helper: true}` in
+`game.yaml` and the anti-cheat warning needs `--yes`. Panic key Ctrl+Alt+Pause. `stop`/`status`
+use `logs/helper.json` and `helper.stop`, never a pid. **Never run the real helper from a test or
+an agent**: it swallows keystrokes and types into the focused window; tests use fakes, and the
+script is only parsed and compiled (`helper-script.test.ts`). The C# must stay C# 5. See
+`docs/guides/macro-helper.md`.
 
 **Pedals are a modifier on the stick mode, and part of the layout.** Rudder pedals carry
 yaw, so a stick that still sends it duplicates them. `stick-modes.yaml` says which axes
@@ -407,9 +443,10 @@ These came from real play sessions; each one is a lint rule now.
    double-tap on a consumable; mashing a heal opened the menu. → `menu-with-combat`
 6. **`isHold: true` latches** the key until pressed again. Boost must not latch. →
    `hold-on-movement`
-7. The 2026-09-28 akimbo attempt failed because the right hand had too few bindings and
-   the two hands used the same finger positions for unrelated jobs. → `missing-required`
-   and `akimbo-role-mismatch`
+7. The 2026-09-28 akimbo attempt failed because the right hand had too few bindings. →
+   `missing-required`. (It also mirrored positions with unrelated jobs; a check for that,
+   `akimbo-role-mismatch`, was removed 2026-11-16: it fired on every layout that
+   specialises the hands on purpose, which is all of them.)
 8. **The Azeron software is built for a left-handed unit; the right unit is not a 1:1
    mirror of it.** Measured 2026-09-28: the thumb cluster — pad and stick — is rotated
    180° on the right unit, while the finger columns and side keys match. Never infer one
@@ -418,8 +455,19 @@ These came from real play sessions; each one is a lint rule now.
    The rotation is absorbed by `analogSettings.angle`, which the right unit's own export
    carries as 176 against the left unit's -1 — a half turn, in degrees, written by the app
    itself. `stick_angle` and `stick_directions` exist as corrections for a unit whose
-   template does not already carry one; neither is in use, they are alternatives, and
-   `stick-double-correction` errors if both are set.
+   template does not already carry one; they are alternatives, and
+   `stick-double-correction` errors if both are set. The right unit uses `stick_directions`.
+   **The right unit's template also carries `invertXAxis: true`** (with angle 176; the
+   app's own right-unit exports, recon 2026-11-15, carry false). The press test of
+   2026-11-11 ran in keyboard mode on that template and found left and right swapped, up
+   and down right: a half turn undoes the mount, one X inversion is left, which
+   `stick_directions` puts right by swapping the keys. The pointer and an Xbox stick have
+   no keys to swap, so on the right unit they pushed right and went left. `devices/` carries
+   that as `stick_invert_x: {mouse: false, xbox: false}`: those modes are written with X not
+   inverted, keyboard mode is untouched (its swap is hand-verified), and a layout's own
+   `invert_x` overrides either. Inferred from the press test and the app's own exports, not
+   flown: `stick-double-correction` errors on a map that swaps left and right and also sets
+   `stick_invert_x.keyboard`, and warns on a layout's `invert_x` on such a stick.
    The right unit also reads a **different direction block**: see the export format rules.
 
 See `docs/guides/analog-input.md` for the standing question of how to get real analog axes
@@ -463,7 +511,21 @@ array of per-key records.
   Tuning section sets `deadzone_lower`/`deadzone_upper` (percent of 512, into
   `lowerLimit`/`upperLimit`), `threshold` (`sensitivity`, 0-25) and `cone_vertical`/
   `cone_horizontal` (1-89). The compiler writes those only where given and decompiling does
-  not emit them, so a template's tuning passes through as before. Taking a stick off keys
+  not emit them, so a template's tuning passes through as before. The rest of the app's
+  Configurator is the same kind of field, mapped in `src/lib/stick-settings.ts` (labels and
+  ranges read from the app's interface code, 2026-11-15): `angle` (-180 to 180, over the
+  device's `stick_angle`, over the template's), `invert_x`/`invert_y` (true or false
+  writes, absent keeps the template's, and for X the device's `stick_invert_x`),
+  `angle_lock` with `lock_zone_angle`/`lock_zone_size` (10-90), `trigger_magnitude` and
+  `hold_magnitude` (1-9), `hold_threshold` with `hold_key` (a key name, written as the
+  keyboard hold type only), `analog_throttle` (0-50, which the app turns off while
+  `analog_smoothing` is on, so both given is an error), and `counter_strafe` (a position
+  name, filed by its record's id -- the number in the app's `BP_<id>` log lines, which is
+  not a pin; the value going to a unit has not been captured; the app warns it might not be
+  safe for online play, and the editor marks it). The editor shows each as the stick holds it
+  now (layout, else device, else template) and only the settings the stick's mode has, as
+  the app's tabs do. Decompiling emits `invert_x` only where an export differs from
+  `stick_invert_x`, so a golden profile still rebuilds its template. Taking a stick off keys
   takes its directions off with it; each press
   of a key has "or send instead" for an Xbox button or trigger, and on the tap for scroll.
 - Key values mix `KeyboardEvent.code` strings (`KeyF`, `Digit1`, `Escape`) with legacy
@@ -487,8 +549,8 @@ array of per-key records.
   contract depends on.
   `analogSettings.angle` is in **degrees**, absolute: the right unit's export carries 176
   and the left unit's -1, which is the 180° mount rotation plus a small trim. It is only
-  overwritten when a device sets `stick_angle`, which no device currently does — the
-  templates already carry the right value.
+  overwritten when a device sets `stick_angle` (none does) or a layout sets `angle`, which
+  wins — the templates already carry the right value.
 - `profileSettings` passes through from the template, except `isSensorOn` and the
   sensitivity step, which a profile sets with `sensor:` and `dpi:`. **The Cyborg II has no
   optical sensor**: its device maps say `sensor: false`, and the editor then offers no

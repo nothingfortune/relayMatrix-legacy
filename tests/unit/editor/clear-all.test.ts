@@ -80,7 +80,7 @@ describe("clearing every key", () => {
     expect(document.querySelectorAll(".action.bound").length).toBeGreaterThan(40);
     clearAll(true);
     expect(document.querySelectorAll(".action.bound").length).toBe(0);
-    expect(document.querySelector(".save-note")?.textContent).toContain("Every key cleared");
+    expect(document.querySelector(".save-note")?.textContent).toContain("Keys cleared");
     expect(saveButton()?.title).toBe("Unsaved: Left unit, Right unit");
   });
 

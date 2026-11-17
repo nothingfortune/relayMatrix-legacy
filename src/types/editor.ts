@@ -1,4 +1,6 @@
 import type { ExportDocument } from "./azeron.js";
+import type { MacrosData } from "../lib/macros.js";
+import type { GenreDefaults } from "../lib/defaults.js";
 import type { StickModeSet } from "../lib/stickmodes.js";
 import type { PedalsDeviceData, SetsData } from "./pedals.js";
 import type { ActionSetData, DeviceData, LintConfig, ProfileData } from "./profile.js";
@@ -28,6 +30,10 @@ export interface EditorGame {
    * the parsed `sets` above cannot say what the file looked like.
    */
   setsText: string;
+  /** The game's macros: the key list each action sends (empty when it has no macros.yaml). */
+  macros: MacrosData;
+  /** The text of the game's `macros.yaml` ("" when it has none), patched by the page on save. */
+  macrosText: string;
   /** The set whose pedals are written into the game's own binding file, if the game says. */
   ingameSet?: string;
   /**
@@ -53,6 +59,11 @@ export interface EditorGenre {
   name: string;
   actions: ActionSetData;
   default: ProfileData;
+  /**
+   * What the genre starts a game with, drawn without starting one: its Xbox pad and each
+   * style's layout of the pair. Absent in a page written before it existed.
+   */
+  defaults?: GenreDefaults;
   /** Stick modes offered for this genre, if it defines any. */
   stickModes?: StickModeSet;
   /** The styles a new game can start in (layouts.yaml), the default first. */

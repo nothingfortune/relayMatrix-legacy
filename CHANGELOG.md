@@ -4,7 +4,89 @@ Every profile change, and why. `playtests.md` records what each layout felt like
 
 ## Unreleased
 
+### Removed
+
+- **The `akimbo-role-mismatch` check.** It warned when a mirrored position did different jobs
+  on the two hands, which every layout that specialises the hands does on purpose, so each one
+  carried accepted entries for it. The check, the accepted entries in Everspace 2's
+  `game.yaml`, and the styles' `acknowledge` lists that wrote them into new games are gone.
+
+### Fixed
+
+- **The right stick's X is no longer reversed in mouse and Xbox mode.** The right unit's
+  template inverts X (`invertXAxis: true`, with angle 176). The press test of 2026-11-11 had
+  already found left and right swapped in keyboard mode, and `stick_directions` fixed that
+  by swapping the keys; a pointer or Xbox stick has no keys, so it was never corrected. The
+  device map now says `stick_invert_x: {mouse: false, xbox: false}` and the compiler writes
+  those modes with X not inverted. Keyboard mode is byte for byte what it was; no committed
+  layout has a pointer or Xbox stick on the right unit, so `dist/` does not change. Inferred
+  from the press test and the app's own right-unit exports, not yet flown.
+
+### Added
+
+- **A controller layout and an Xbox pad mapping for every genre, and the defaults drawn.**
+  RPG and Strategy had no pad controls and no `layouts.yaml`; they now have both (RPG: the left
+  stick walks the party, the right turns and zooms the camera, A and B are the mouse's buttons,
+  the bumpers, triggers and d-pad are hotbar 1 to 8; Strategy: the left stick is the pointer, in
+  mouse mode, A selects, X orders, B stops, the right stick pans, bumpers rotate, triggers
+  zoom, the d-pad is groups 1 to 4). Their pair still starts as the one-unit layout and an
+  empty right unit, as before: the `keyboard` style says it is the `default`. FPS gained a pad
+  control for `interact` (d-pad up; ping moved to left, the flashlight is under the fingers),
+  and SpaceSims for the travel and jump drives, which are required (Y and X, in place of next
+  primary and secondary, which are under the fingers). `azeron defaults [genre] [--style S]`
+  prints a genre's pad control by control and a layout of the pair, and the Setup tab has a
+  Defaults view (also a card on the Games screen) that draws both without starting a game, with
+  a button that opens the new-game form on that genre and layout. `lintGenre` now errors on an
+  `xbox:` that is not a pad control, two actions on one control and a style that will not
+  build, and warns on a menu on a button play presses. A style may say it is the `default`. A
+  stick in mouse mode now survives `startGame` (it was dropped as empty).
+
+- **Macros, the model.** Press one button and the game receives a list of keys. A game's
+  `macros.yaml` gives an action a list (`abc: [KeyA, KeyB, KeyC]`), with a hold, a gap and
+  `repeat` when wanted. Any of the action's three buttons starts it: its keypad `key` (a
+  trigger, F13-F24, from `wireTrigger`), its `kbm` (one plain key) or its `pad` (a controller
+  button). `azeron build` compiles it to `dist/<game>/macros.json` and `--check` holds it to the
+  gate; `macro-invalid` and `macro-trigger` are errors. `MacroRunner` types it against a fake
+  keyboard in tests. Nothing runs on a PC yet: the editor and the Windows helper follow.
+  `docs/plans/macros.md` has the design.
+
+- **Macros, the editor.** The In-game tab has a Macros panel: each macro's keys (typed as `A B C`,
+  `ControlLeft+R`, `wait:50`, `down:ShiftLeft`), repeat, hold and gap, and which buttons start it:
+  the keypad (a trigger key, F13-F24, handed out by `wireTrigger`), a keyboard key or a controller
+  button. Add takes a name and keys together; Delete takes the action with it unless a control
+  sends it. Saved with the layout into `macros.yaml`, patched macro by macro so its comments
+  survive, and rebuilt into `dist/`. The Checks panel shows `macro-invalid` and `macro-trigger`.
+  A macro's action is never given a game key: dropping it on a control, Send the game's keys
+  and the usual bindings all leave it alone.
+
+- **Macros, the Windows helper.** `azeron helper start [game] [--yes]` runs a small PowerShell +
+  C# process that watches for the buttons that start a macro (the keypad's F13-F24 trigger and a
+  keyboard key, both swallowed; a controller button, read from XInput) and types the macro's keys
+  with `SendInput` and scan codes. It is a thin bridge: the runner stays in TypeScript behind a
+  line-delimited JSON protocol (`src/lib/helper.ts`). A game opts in with `macros: {helper: true}`
+  in its `game.yaml`; the anti-cheat warning is printed once and needs `--yes` or a yes. It
+  ignores its own typing, releases every key on stop, error, Ctrl-C and when Node dies, has a
+  runaway guard, and Ctrl+Alt+Pause releases everything and stops it. `azeron helper status` and
+  `stop` work through a heartbeat file under `logs/`, never a process id. Not yet run against a
+  real hook, game or controller: `docs/guides/macro-helper.md` is the hand test.
+
+- **Swap left and right.** The write bar and the press test bar swap which unit is which hand
+  in `local.yaml`, both at once, for a unit named for the wrong hand.
+
+- **The rest of the stick Configurator, in YAML and the editor.** `angle`, `invert_x`,
+  `invert_y`, `angle_lock` (with `lock_zone_angle`, `lock_zone_size`), `trigger_magnitude`,
+  `hold_threshold` (with `hold_magnitude`, `hold_key`), `analog_throttle`,
+  `analog_smoothing` and `counter_strafe`, each written only where given. The Tuning section
+  shows what the stick holds now and only the settings its mode has; counter strafe is
+  marked as unsafe online. The units report now names an inversion, angle or switch the
+  app's copy holds otherwise. New lint: `stick-magnitude-order`, and
+  `stick-double-correction` for a layout's `invert_x` on a keyboard stick whose unit
+  already swaps left and right.
+
 ### Changed
+
+- **Much less text in the editor.** Notes, hints, tooltips and prompts are labels and short
+  fragments; messages that report a fact keep it.
 
 - **The editor opens at `relaymatrix.localhost`.** `azeron serve` prints and opens
   `http://relaymatrix.localhost:4173` instead of a bare address; `localhost` and `127.0.0.1`

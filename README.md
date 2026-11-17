@@ -108,7 +108,7 @@ rule:
 | `provided-action-bound`               | error   | An action another device provides (the mouse) put on a key        |
 | `raw-types-stale`                     | error   | A kept raw type that would stop a new binding from working        |
 | `stick-not-keyboard`                  | error   | A stick in gamepad mode, which made the game stutter              |
-| `stick-double-correction`             | error   | Two corrections for one stick rotation                            |
+| `stick-double-correction`             | error   | Two corrections for one stick rotation (a layout's: a warning)    |
 | `pedals-no-device`                    | error   | Pedals on a device with no device map                             |
 | `pedals-set-unknown`                  | error   | Pedals in `sets.yaml` for a layout no profile names               |
 | `pedal-unknown-axis`                  | error   | A pedal axis the device does not have                             |
@@ -120,10 +120,10 @@ rule:
 | `menu-with-combat`                    | warning | A menu on a key you mash or hold in a fight                       |
 | `hold-on-movement`                    | warning | A latching flight key — boost must not latch                      |
 | `duplicate-output-key`                | warning | The same key sent from two positions                              |
-| `akimbo-role-mismatch`                | warning | The same finger doing unrelated jobs on each hand                 |
 | `label-names-other-action`            | warning | A key labelled with another action's name, which the unit shows   |
 | `pedal-duplicates-stick`              | warning | A pedal and a stick both sending one axis                         |
 | `pedal-rest-on-centred`               | warning | A toe brake, uncalibrated, on an axis read about a centre         |
+| `stick-magnitude-order`               | warning | A hold magnitude below the trigger magnitude                      |
 | `unverified-device`                   | warning | A device map nobody has press-tested                              |
 | `stale-acknowledgement`               | note    | An acceptance for a finding that no longer exists                 |
 

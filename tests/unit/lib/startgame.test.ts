@@ -76,7 +76,7 @@ describe("accepting a finding from the page", () => {
     const before = (new Game(SIM).config.lint?.acknowledged ?? []).length;
     acknowledgeFinding({
       game: "zzSim",
-      rule: "akimbo-role-mismatch",
+      rule: "combat-tap-delayed",
       profile: "v1",
       position: "pinky_1",
       reason: "the pinkies do different jobs on purpose",
@@ -86,7 +86,7 @@ describe("accepting a finding from the page", () => {
     const acknowledged = new Game(SIM).config.lint?.acknowledged ?? [];
     expect(acknowledged).toHaveLength(before + 1);
     expect(acknowledged.at(-1)).toEqual({
-      rule: "akimbo-role-mismatch",
+      rule: "combat-tap-delayed",
       profile: "v1",
       position: "pinky_1",
       reason: "the pinkies do different jobs on purpose",
@@ -98,7 +98,7 @@ describe("accepting a finding from the page", () => {
     const before = (new Game(SIM).config.lint?.acknowledged ?? []).length;
     const once = {
       game: "zzSim",
-      rule: "akimbo-role-mismatch",
+      rule: "combat-tap-delayed",
       profile: "v1",
       position: "pinky_1",
       reason: "on purpose",
@@ -205,6 +205,13 @@ describe("deleting and renaming layouts and games", () => {
 
   it("renames a layout everywhere it is named, keeping its ids and keys", () => {
     twoLayouts();
+    acknowledgeFinding({
+      game: "zzSim",
+      rule: "combat-tap-delayed",
+      profile: "v1",
+      position: "pinky_1",
+      reason: "accepted for the layout",
+    });
     const before = loadProfileData(`${SIM}/profiles/v1-left.yaml`);
     renameLayout({ game: "zzSim", set: "v1", to: "main" });
     expect(layouts()).toEqual(["main", "v2"]);
@@ -215,7 +222,7 @@ describe("deleting and renaming layouts and games", () => {
     expect(after.profile).toMatchObject({ set: "main", name: "ZZ Sim main left" });
     const game = new Game(SIM);
     expect(Object.keys(game.sets.sets).sort()).toEqual(["main", "v2"]);
-    // The pad's split thumbs were acknowledged for v1; they follow it.
+    // What was accepted for v1 follows it.
     const profiles = (game.config.lint?.acknowledged ?? []).map((entry) => entry.profile);
     expect(profiles).not.toContain("v1");
     expect(profiles).toContain("main");
@@ -224,15 +231,13 @@ describe("deleting and renaming layouts and games", () => {
 
   it("moves an acknowledgement that names one profile's file, not only the layout", () => {
     twoLayouts();
-    const path = repoPath(`${SIM}/game.yaml`);
-    const doc = parseDocument(readFileSync(path, "utf8"));
-    doc.addIn(["lint", "acknowledged"], {
+    acknowledgeFinding({
+      game: "zzSim",
       rule: "key-collision",
       profile: "v1-left",
       key: "KeyS",
       reason: "the same key on purpose",
     });
-    writeFileSync(path, doc.toString());
     renameLayout({ game: "zzSim", set: "v1", to: "main" });
     const named = (new Game(SIM).config.lint?.acknowledged ?? []).map((entry) => entry.profile);
     expect(named).toContain("main-left");
@@ -364,7 +369,7 @@ describe("startGame", () => {
     expect(right.stick?.directions).toMatchObject({ up: "pitch_up" });
   });
 
-  it("starts each style with nothing for the checks to say, the pad's split thumbs acknowledged", () => {
+  it("starts each style with nothing for the checks to say, and nothing acknowledged", () => {
     for (const style of ["controller", "keyboard"]) {
       for (const genre of ["SpaceSims", "FPS"]) {
         const slug = `zz${genre}${style}`;
@@ -380,17 +385,7 @@ describe("startGame", () => {
         const result = lintGame(game);
         expect(result.live, `${genre} ${style}`).toEqual([]);
         expect(buildAll([game]).errors).toEqual([]);
-        if (style === "controller") {
-          expect(result.acknowledged.length, `${genre} ${style}`).toBeGreaterThan(0);
-          expect(
-            result.acknowledged.every(
-              ({ ack }) =>
-                (ack.position ?? "").startsWith("dpad") ||
-                ack.position === "stick_press" ||
-                ack.position === "thumb_aux_upper",
-            ),
-          ).toBe(true);
-        }
+        expect(result.acknowledged, `${genre} ${style}`).toEqual([]);
       }
     }
   });

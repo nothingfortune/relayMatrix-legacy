@@ -7,6 +7,8 @@
 
 import { DEFAULT_FEATURE_DELAY, SLOTS, STICK_MODE_CODES, TYPE_MOUSE } from "../types/azeron.js";
 import { canonicalKbm, isPadControl, kbmLabel, padLabel, parseKbm } from "./controls.js";
+import { SINGLE_UNIT, styleDefaults } from "./defaults.js";
+import type { DefaultsInput } from "./defaults.js";
 import { resolveSlot } from "./binding.js";
 import * as keys from "./keys.js";
 import type { Slot } from "../types/azeron.js";
@@ -20,6 +22,8 @@ import type {
 } from "../types/profile.js";
 import type { ActionSet, Profile } from "./model-core.js";
 import { needsWire } from "./wiring.js";
+import { compileMacros } from "./macros.js";
+import type { MacrosData } from "./macros.js";
 import { actionsLiveTogether, layoutModes, liveTogether, playsAction } from "./modes.js";
 import type { LiveTogether } from "./modes.js";
 import type { Game, Genre } from "./model.js";
@@ -357,6 +361,55 @@ export function checkProfile(profile: Profile, actions: ActionSet, config: LintC
     });
   }
 
+  // The device's left-right key swap (`stick_directions`) puts right an X the template
+  // inverts, in keyboard mode. Inverting X again there, in the device's map or a layout,
+  // is the same correction twice.
+  const swapsX = device.stickDirections.left === "right" || device.stickDirections.right === "left";
+  if (swapsX && device.stickInvertX.keyboard !== undefined) {
+    findings.push({
+      level: ERROR,
+      rule: "stick-double-correction",
+      profile: name,
+      message:
+        `device ${device.name} swaps left and right (stick_directions) and also sets ` +
+        "stick_invert_x for keyboard mode. Both fix the same reversed X; keep one.",
+    });
+  }
+  if (swapsX) {
+    for (const [position, spec] of Object.entries(profile.positions)) {
+      if (!device.isStick(position) || (spec.mode ?? "keyboard") !== "keyboard") continue;
+      if (spec.invert_x === undefined) continue;
+      findings.push({
+        level: WARNING,
+        rule: "stick-double-correction",
+        profile: name,
+        position,
+        message:
+          `invert_x is set on a keyboard stick, but ${device.name} already swaps left and ` +
+          "right for the template's inversion. If this is not the template's own value, " +
+          "the two cancel; press the stick to check.",
+      });
+    }
+  }
+
+  // The app keeps the hold magnitude at or above the trigger magnitude.
+  for (const [position, spec] of Object.entries(profile.positions)) {
+    if (!device.isStick(position)) continue;
+    const trigger = spec.trigger_magnitude;
+    const hold = spec.hold_magnitude;
+    if (trigger !== undefined && hold !== undefined && hold < trigger) {
+      findings.push({
+        level: WARNING,
+        rule: "stick-magnitude-order",
+        profile: name,
+        position,
+        message:
+          `hold_magnitude ${String(hold)} is below trigger_magnitude ${String(trigger)}; ` +
+          "the app raises the hold to the trigger.",
+      });
+    }
+  }
+
   // Constraint 1: a stick in gamepad mode stutters Everspace 2.
   if (config.require_keyboard_stick) {
     for (const [position, spec] of Object.entries(profile.positions)) {
@@ -558,7 +611,7 @@ export function checkProfile(profile: Profile, actions: ActionSet, config: LintC
   return findings;
 }
 
-/** Cross-unit rules: required coverage, and mirrored roles on akimbo pairs. */
+/** Cross-unit rules: required coverage. */
 export function checkSet(
   profiles: readonly Profile[],
   actions: ActionSet,
@@ -601,29 +654,6 @@ export function checkSet(
     }
   }
 
-  if (profiles.length === 2) {
-    const [left, right] = profiles as [Profile, Profile];
-    for (const position of Object.keys(left.positions)) {
-      if (!(position in right.positions)) continue;
-      const roles = [left, right].map((profile) => {
-        const tap = profile.positions[position]?.tap;
-        const tags = typeof tap === "string" ? actions.tags(tap) : new Set<string>();
-        return ROLE_TAGS.find((tag) => tags.has(tag)) ?? null;
-      });
-      const [leftRole, rightRole] = roles;
-      if (leftRole && rightRole && leftRole !== rightRole) {
-        findings.push({
-          level: WARNING,
-          rule: "akimbo-role-mismatch",
-          profile: setName,
-          position,
-          message:
-            `mirrored position does ${leftRole} on ${String(left.unit)} but ${rightRole} on ` +
-            `${String(right.unit)}, so the same finger learns two unrelated jobs`,
-        });
-      }
-    }
-  }
   return findings;
 }
 
@@ -1042,12 +1072,27 @@ export function layoutContextFor(game: Game, complete: boolean): LayoutContext {
 }
 
 export function lintGame(game: Game, profiles?: readonly Profile[]): LintResult {
-  return lintProfiles(
+  const result = lintProfiles(
     game.actions,
     profiles ?? game.loadedProfiles(),
     game.lintConfig,
     layoutContextFor(game, profiles === undefined),
   );
+  const macros = macroFindings(game.macros, game.actions.actions);
+  return macros.length === 0 ? result : { ...result, live: [...result.live, ...macros] };
+}
+
+/** What is wrong with a game's macros: each is an error, and none can be accepted. */
+export function macroFindings(
+  data: MacrosData,
+  actions: Readonly<Record<string, ActionSpec>>,
+): Finding[] {
+  return compileMacros(data, actions).problems.map((problem) => ({
+    level: ERROR,
+    rule: problem.rule,
+    key: problem.macro,
+    message: problem.message,
+  }));
 }
 
 /**
@@ -1058,5 +1103,72 @@ export function lintGenre(genre: Genre): LintResult {
   const result = lintProfiles(genre.actions, [genre.defaultProfile()], genre.lintConfig);
   // A genre's vocabulary has no keys; each game supplies its own. Its default layout says
   // where an action goes, not what carries it, so an action with no key is not a finding.
-  return { ...result, live: result.live.filter((f) => f.rule !== "action-sends-nothing") };
+  const live = result.live.filter((f) => f.rule !== "action-sends-nothing");
+  const input: DefaultsInput = {
+    genre: genre.name,
+    actions: genre.actions.actions,
+    defaults: genre.config.positions,
+    styles: genre.styles,
+    modes: genre.stickModes,
+  };
+  return { ...result, live: [...live, ...lintGenrePad(input.actions), ...lintGenreStyles(input)] };
+}
+
+/** The two controls a pad has for menus; a menu anywhere else is a button a fight presses. */
+const PAD_MENU_CONTROLS: readonly string[] = ["View", "Menu"];
+
+/**
+ * The genre's Xbox pad, `xbox:` in its vocabulary: every game inherits it, and the controller
+ * style places the pair by it. A control that is not on a pad, two actions on one control, and
+ * a menu on a button a fight presses are mistakes here, before any game copies them.
+ */
+export function lintGenrePad(actions: Readonly<Record<string, ActionSpec>>): Finding[] {
+  const findings: Finding[] = [];
+  const byControl = new Map<string, string[]>();
+  for (const [id, spec] of Object.entries(actions)) {
+    // Read as found: a hand edit can leave a number or a typo.
+    const control: unknown = spec.xbox;
+    if (control === undefined) continue;
+    if (!isPadControl(control) || typeof control !== "string") {
+      findings.push({
+        level: ERROR,
+        rule: "xbox-unknown",
+        message: `${id}'s xbox control ${JSON.stringify(control)} is not on an Xbox pad.`,
+      });
+      continue;
+    }
+    byControl.set(control, [...(byControl.get(control) ?? []), id]);
+    if ((spec.tags ?? []).includes("menu") && !PAD_MENU_CONTROLS.includes(control)) {
+      findings.push({
+        level: WARNING,
+        rule: "xbox-menu-on-play",
+        key: control,
+        message:
+          `${id} is a menu, on ${padLabel(control)}, a button play presses. ` +
+          "Menus belong on View and Menu.",
+      });
+    }
+  }
+  for (const [control, ids] of byControl) {
+    if (ids.length < 2) continue;
+    findings.push({
+      level: ERROR,
+      rule: "xbox-collision",
+      key: control,
+      message: `${padLabel(control)} is the xbox control of ${[...ids].sort().join(" and ")}.`,
+    });
+  }
+  return findings;
+}
+
+/** Every style of the genre must build, as a new game builds it. */
+export function lintGenreStyles(input: DefaultsInput): Finding[] {
+  return Object.keys(input.styles)
+    .filter((name) => name !== SINGLE_UNIT)
+    .flatMap((name): Finding[] => {
+      const error = styleDefaults(input, name).error;
+      return error === null
+        ? []
+        : [{ level: ERROR, rule: "style-unbuildable", key: name, message: `${name}: ${error}` }];
+    });
 }

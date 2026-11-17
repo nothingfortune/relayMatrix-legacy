@@ -159,7 +159,7 @@ describe("opening a data file", () => {
     await vi.waitFor(() => {
       expect(confirm).toHaveBeenCalled();
     });
-    expect(confirm.mock.calls[0]?.[0] ?? "").toContain("discards edits");
+    expect(confirm.mock.calls[0]?.[0] ?? "").toContain("discards unsaved edits");
     expect(gameName()).not.toContain("Replacement data");
     expect(clean()).toBe(false);
   });

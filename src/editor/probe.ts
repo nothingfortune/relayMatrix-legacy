@@ -51,8 +51,7 @@ export type Mode = "pins" | "zero";
  * which looks like a broken layout. Two units carried two each for a week.
  */
 export const REMOVE_PROBES =
-  "Then take the press test off the units with the button above, or a unit's profile " +
-  "button will land on it.";
+  "Then take the press test off the units, or a profile button will land on it.";
 
 interface State {
   payload: ProbePayload;
@@ -365,7 +364,6 @@ function exportDevice(hand: string): void {
     const more = changes.length > 12 ? `\n…and ${String(changes.length - 12)} more` : "";
     const sure = window.confirm(
       `Saving changes the ${unitLabel(hand).toLowerCase()} unit's map:\n\n${shown}${more}\n\n` +
-        "A key pressed on the computer's keyboard during the test counts as a reading too. " +
         "Save these changes?",
     );
     if (!sure) return;
@@ -487,8 +485,7 @@ function renderZero(): HTMLElement {
   panel.append(el("h2", {}, ["Stick zero"]));
   panel.append(
     el("div", { class: "note" }, [
-      "While this pass is open, each unit runs the stick test. Push the stick each way " +
-        "shown, and the page records which way the unit thinks it is pointing.",
+      "Push the stick each way shown: the page records which way the unit reads it.",
     ]),
   );
 

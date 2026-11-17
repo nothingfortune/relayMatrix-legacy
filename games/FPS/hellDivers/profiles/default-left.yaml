@@ -24,40 +24,37 @@ profile:
 positions:
   stick:
     mode: keyboard
-    directions: { up: move_forward, right: strafe_right, down: move_back, left: strafe_left }
-
-  # Pinky bank: the stratagem on the resting row, the backpack and drop above it.
-  pinky_1: {label: Backpack, tap: backpack}
-  pinky_2: {label: Drop, tap: drop}
-  pinky_3: {label: Stratagem (hold), tap: stratagem}
-  pinky_4: {label: Ping, tap: ping}
-
-  # Ring bank: the four equipment slots, in the game's order.
-  ring_1: {label: Primary, tap: weapon_1}
-  ring_2: {label: Secondary, tap: weapon_2}
-  ring_3: {label: Support weapon, tap: weapon_3}
-  ring_4: {label: Grenade slot, tap: grenade_slot}
-
-  # Middle: the things a fight needs constantly.
-  middle_1: {label: Push to talk, tap: push_to_talk}
-  middle_2: {label: Reload, tap: reload}
-  middle_3: {label: Interact, tap: interact}
-  middle_4: {label: Stim, tap: stim}
-
-  # Index: stance, with sprint on the resting row.
-  index_1: {label: Prone, tap: prone}
-  index_2: {label: Climb / vault, tap: jump}
-  index_3: {label: Sprint, tap: sprint}
-  index_4: {label: Crouch, tap: crouch}
-
-  # Side keys: the two attacks that are not the trigger.
-  pinky_side: {label: Melee, tap: melee}
-  index_side: {label: Throw grenade, tap: grenade}
-
-  # Thumb aux: the dive, a thumb's reach from the stick.
-  thumb_aux_lower: {label: Dive, tap: dive}
-
-  # Bottom row: menus only.
-  pinky_5:  {label: Main menu, tap: menu_main}
-  middle_5: {label: Emote, tap: emote}
-  index_5:  {label: Map, tap: map}
+    directions: { up: move_forward, down: move_back, right: strafe_right, left: strafe_left }
+  pinky_2:
+    label: Drop
+    tap: drop
+  index_1:
+    label: Prone
+    tap: prone
+  index_2:
+    label: Climb / vault
+    tap: jump
+  index_3:
+    label: Sprint
+    tap: sprint
+  index_4:
+    label: Crouch
+    tap: crouch
+  index_side:
+    label: Throw grenade
+    tap: grenade
+  thumb_aux_lower:
+    label: Dive
+    tap: dive
+  dpad_up:
+    tap: up
+    label: ↑ Up
+  dpad_down:
+    tap: down
+    label: ↓ Down
+  dpad_left:
+    tap: left
+    label: ← Left
+  dpad_right:
+    tap: right
+    label: → Right

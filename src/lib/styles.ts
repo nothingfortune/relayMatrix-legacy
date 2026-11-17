@@ -19,12 +19,12 @@ import type { Hand } from "./xbox.js";
 export interface StyleSpec {
   label: string;
   note?: string;
+  /** The style a pair starts in when none is asked for, ahead of the usual order. */
+  default?: boolean;
   /** A mode in the genre's stick-modes.yaml, for both sticks. */
   stick_mode?: string;
   /** What the new game's actions.yaml says of an action beyond its key; null removes. */
   actions?: Record<string, Record<string, unknown>>;
-  /** Mirrored positions whose two hands do different jobs on purpose, and why. */
-  acknowledge?: { reason: string; positions: string[] };
   /** A hand's positions, or `default` for the genre's single-unit default.yaml. */
   left?: "default" | Record<string, PositionSpec>;
   right?: "default" | Record<string, PositionSpec>;
@@ -32,6 +32,20 @@ export interface StyleSpec {
 
 /** The styles, in the order they are offered: the first is the default. */
 export const STYLE_ORDER = ["controller", "keyboard"] as const;
+
+/**
+ * A genre's style names in the order they are offered: a style that says it is the `default`
+ * first, then `controller` and `keyboard`, then any other. The first is what a pair starts in.
+ */
+export function styleNames(styles: Readonly<Record<string, StyleSpec>>): string[] {
+  const names = Object.keys(styles);
+  const rank = (name: string): number => {
+    if (styles[name]?.default === true) return -1;
+    const at = (STYLE_ORDER as readonly string[]).indexOf(name);
+    return at === -1 ? STYLE_ORDER.length : at;
+  };
+  return names.sort((a, b) => rank(a) - rank(b));
+}
 
 export class StyleError extends Error {
   override name = "StyleError";
@@ -57,8 +71,6 @@ export function parseStyles(data: unknown, where: string): Record<string, StyleS
 export interface BuiltStyle {
   left: Record<string, PositionSpec>;
   right: Record<string, PositionSpec>;
-  /** Positions both hands use, for different jobs on purpose; for lint.acknowledged. */
-  acknowledge: { reason: string; positions: string[] } | null;
   /** Overrides for the new game's actions.yaml. */
   actions: Record<string, Record<string, unknown>>;
 }
@@ -106,7 +118,6 @@ export function buildStyle(name: string, style: StyleSpec, inputs: StyleInputs):
   return {
     left,
     right,
-    acknowledge: style.acknowledge ?? null,
     actions: structuredClone(style.actions ?? {}),
   };
 }

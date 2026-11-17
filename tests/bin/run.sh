@@ -59,6 +59,12 @@ check_fails "unknown command exits non-zero" ./bin/azeron nonsense
 check_fails "the cheatsheet command is gone" ./bin/azeron cheatsheet
 check "no generated HTML is tracked" bash -c '[ -z "$(git ls-files "*.html")" ]'
 check_fails "unknown game exits non-zero" ./bin/azeron lint no-such-game
+says "defaults lists the genres and their layouts" "FPS +controller, keyboard, default" ./bin/azeron defaults
+says "defaults prints a genre's pad" "^FPS: the Xbox pad" ./bin/azeron defaults FPS
+says "defaults prints the controller layout of the pair" "Like a controller \(controller\)" ./bin/azeron defaults FPS
+says "defaults prints the one unit layout asked for" "One unit \(default\)" ./bin/azeron defaults FPS --style default
+check_fails "defaults refuses a genre that is not there" ./bin/azeron defaults NoSuchGenre
+check_fails "defaults refuses a layout that is not there" ./bin/azeron defaults FPS --style nope
 # Refusals only: a game or layout that was made would be written into the frozen fixture.
 says "new needs a genre" "new needs a name and --genre" ./bin/azeron new Some Game
 says "new refuses a genre that is not there" "not a genre" ./bin/azeron new Some Game --genre Nope
@@ -70,6 +76,40 @@ check_fails "units exits non-zero while the app is behind" ./bin/azeron units ev
 says "install refuses without --yes" "Re-run with --yes" ./bin/azeron install everspace
 says "install refuses one device id for a pair" "would send profiles for 2 units" \
   ./bin/azeron install everspace --device-id 0 --dry-run
+
+# The macro helper's refusals, which need no Windows process: they come before the machine is
+# looked at. The state files go in a folder of their own, and the games with the helper on
+# are a scratch copy, so nothing here reads the owner's logs or the frozen fixture is changed.
+helper_logs="$(mktemp -d)"
+helper_repo="$(mktemp -d)"
+cp -r tests/fixtures/repo/. "$helper_repo"
+says "helper needs a subcommand" "helper needs start" env AZERON_LOGS="$helper_logs" ./bin/azeron helper
+says "helper refuses an unknown subcommand" "unknown helper command 'restart'" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper restart
+check_fails "helper start exits non-zero for a game that has not turned it on" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper start everspace --yes
+says "helper start refuses a game that has not turned it on" "the helper is off" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper start everspace --yes
+says "helper start with no game on says so" "no game has the helper on" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper start --yes
+says "helper status says none runs" "not running" env AZERON_LOGS="$helper_logs" ./bin/azeron helper status
+says "helper stop says when nothing runs" "no helper is running" \
+  env AZERON_LOGS="$helper_logs" ./bin/azeron helper stop
+printf '\nmacros:\n  helper: true\n' >> "$helper_repo/games/SpaceSims/everspace/game.yaml"
+says "helper start refuses a game with no macros" "no macros" \
+  env AZERON_LOGS="$helper_logs" AZERON_DATA="$helper_repo" ./bin/azeron helper start everspace --yes
+sed -i 's/^actions:$/actions:\n  quick_heal: {label: Quick heal, key: F13}/' "$helper_repo/games/SpaceSims/everspace/actions.yaml"
+printf 'macros:\n  quick_heal: [KeyH, KeyJ]\n' > "$helper_repo/games/SpaceSims/everspace/macros.yaml"
+says "helper start refuses a program that was not built" "macros.json is missing. Run azeron build" \
+  env AZERON_LOGS="$helper_logs" AZERON_DATA="$helper_repo" ./bin/azeron helper start everspace --yes
+# The advice that refusal gives has to work: azeron build writes macros.json, build --check
+# agrees with it, and a stale one is caught.
+says "build writes the macro program the helper asks for" "wrote +.*macros.json"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace
+check "build --check agrees once macros.json is built"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace --check
+printf ' ' >> "$helper_repo/dist/SpaceSims/everspace/macros.json"
+says "build --check sees a stale macros.json" "stale: .*macros.json does not match"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace --check
+check_fails "build --check exits non-zero for a stale macros.json"   env AZERON_DATA="$helper_repo" ./bin/azeron build everspace --check
+rm -rf "$helper_logs" "$helper_repo"
 
 # The editor server and its stop command, on a port nothing else is using. The port is one the
 # system hands out, and the server is only stopped once it has said it started: a server

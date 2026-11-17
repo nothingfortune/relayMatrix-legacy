@@ -60,7 +60,7 @@ export function restSentence(spec: PedalAxisData | undefined): string {
   if (spec === undefined) return "";
   if (spec.rest === "centre") return "Springs back to centre.";
   if (spec.calibrated_rest === "centre") {
-    return "Rests at the end of its travel. Calibrated in Windows: 0.0 at rest, +1.0 pressed.";
+    return "Rests at the end of its travel. Calibrated: 0.0 at rest, +1.0 pressed.";
   }
   return spec.rest_end === "min"
     ? "Rests at the end of its travel: -1.0 at rest, +1.0 pressed."
@@ -80,21 +80,19 @@ export function statusWords(status: NameStatus | null): { short: string; long: s
     case "unconfirmed":
       return {
         short: "Axis not established",
-        long: "The game really has this name; which pedal axis it is has not been established.",
+        long: "The game has this name; which pedal axis it is is not established.",
       };
     case "bound":
       return {
         short: "Read from the game, unchecked",
-        long:
-          "Recorded from a file where the axis was bound in the game's own screen. It shows what " +
-          "the game wrote, not that this pedal was the one moved.",
+        long: "Read from a file the axis was bound in. Shows what the game wrote, not which pedal moved.",
       };
     case "candidate":
       return { short: "A guess", long: "Written by hand; nothing has shown it is right." };
     case null:
       return {
         short: "No game name yet",
-        long: "No name is recorded for this axis in this game, so nothing is written for it.",
+        long: "No name recorded for this axis, so nothing is written.",
       };
   }
 }
