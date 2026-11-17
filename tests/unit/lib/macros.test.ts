@@ -466,6 +466,20 @@ describe("compileMacros", () => {
     expect(compileMacros(only, apart).problems).toEqual([]);
   });
 
+  it("refuses a trigger key that another action's keypad control sends with a modifier", () => {
+    const sent = { ...actions, copy: { label: "Copy", key: "F13", meta: "ControlLeft" } };
+    const only = parseMacros({ macros: { quick: ["KeyB"] } }, "macros.yaml");
+    expect(compileMacros(only, sent).problems).toEqual([
+      {
+        macro: "quick",
+        rule: "macro-trigger",
+        message: "F13 is swallowed from 'copy', which is on ControlLeft+F13",
+      },
+    ]);
+    const apart = { ...actions, copy: { label: "Copy", key: "KeyC", meta: "ControlLeft" } };
+    expect(compileMacros(only, apart).problems).toEqual([]);
+  });
+
   it("lets a pad button share a name with a key, since they are different buttons", () => {
     const ok = {
       one: { label: "One", pad: "A" },

@@ -381,6 +381,19 @@ function sourceOf(trigger: MacroTrigger): string {
   return trigger.device === "pad" ? `pad:${trigger.input}` : `key:${trigger.input}`;
 }
 
+/**
+ * How an action is sent with a modifier on `input`, from its keyboard binding or its keypad
+ * key, or null when it is not: a plain key on the same one is a collision of its own.
+ */
+function chordOnKey(spec: ActionSpec, input: string): string | null {
+  if (typeof spec.kbm === "string") {
+    const parsed = parseKbm(spec.kbm);
+    if (parsed !== null && parsed.modifiers.length > 0 && parsed.input === input) return spec.kbm;
+  }
+  if (spec.key === input && typeof spec.meta === "string") return `${spec.meta}+${spec.key}`;
+  return null;
+}
+
 /** One macro as the helper runs it. */
 export interface CompiledMacro {
   action: string;
@@ -443,15 +456,13 @@ export function compileMacros(
     for (const trigger of triggers) {
       if (trigger.device === "pad") continue;
       for (const [otherId, other] of Object.entries(actions)) {
-        if (otherId === id || typeof other.kbm !== "string") continue;
-        const parsed = parseKbm(other.kbm);
-        if (parsed === null || parsed.modifiers.length === 0 || parsed.input !== trigger.input) {
-          continue;
-        }
+        if (otherId === id) continue;
+        const chord = chordOnKey(other, trigger.input);
+        if (chord === null) continue;
         problems.push({
           macro: id,
           rule: "macro-trigger",
-          message: `${trigger.input} is swallowed from '${otherId}', which is on ${other.kbm}`,
+          message: `${trigger.input} is swallowed from '${otherId}', which is on ${chord}`,
         });
         clash = true;
       }
