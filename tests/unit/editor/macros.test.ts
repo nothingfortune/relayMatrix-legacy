@@ -60,7 +60,7 @@ function payloadWith(
   const game = payload.games.find((entry) => entry.slug === "everspace");
   if (!game) throw new Error("no everspace in the fixture");
   const actions = (game.actions.actions ??= {});
-  actions.quick_heal = { label: "Quick heal", key: "F13", kbm: "KeyM" };
+  actions.quick_heal = { label: "Quick heal", key: "F13", kbm: "Semicolon" };
   actions.reload_it = { label: "Reload it", kbm: "KeyR" };
   Object.assign(actions, extra);
   game.macros = { macros };
@@ -167,7 +167,7 @@ describe("the Macros panel", () => {
     expect(keysOf("quick_heal")).toBe("H J");
     expect(field<HTMLInputElement>(row, "[data-macro-keypad]").checked).toBe(true);
     expect(row.querySelector(".macro-trigger")?.textContent.trim()).toBe("F13");
-    expect(row.querySelector("[data-kbm]")?.textContent).toBe("M");
+    expect(row.querySelector("[data-kbm]")?.textContent).toBe(";");
     expect(row.querySelector("[data-pad]")).not.toBeNull();
     // One home: the macro's action is not also a row of the list of actions.
     const listed = [...document.querySelectorAll(".ingame-row .who b")].map((b) => b.textContent);

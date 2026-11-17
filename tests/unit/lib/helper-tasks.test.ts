@@ -54,7 +54,7 @@ const ORIGINAL_GAME = readFileSync(GAME_YAML, "utf8");
 const ORIGINAL_ACTIONS = readFileSync(ACTIONS, "utf8");
 
 const ON = `${ORIGINAL_GAME}\nmacros:\n  helper: true\n`;
-const MACRO_ACTION = `actions:\n  quick_heal: {label: Quick heal, key: F13, kbm: KeyM, pad: RB}\n`;
+const MACRO_ACTION = `actions:\n  quick_heal: {label: Quick heal, key: F13, kbm: Semicolon, pad: RB}\n`;
 const STEPS = `macros:\n  quick_heal: [KeyH, KeyJ]\n`;
 
 function setUp(options: { optIn?: boolean; macros?: boolean; build?: boolean }): Game {

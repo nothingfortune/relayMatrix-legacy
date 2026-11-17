@@ -382,15 +382,18 @@ function sourceOf(trigger: MacroTrigger): string {
 }
 
 /**
- * How an action is sent with a modifier on `input`, from its keyboard binding or its keypad
- * key, or null when it is not: a plain key on the same one is a collision of its own.
+ * How an action is sent on `input`, from its keyboard binding or its keypad key, with a
+ * modifier or without, or null when it is not. The helper takes the key whatever is held with
+ * it, so any such action is no longer heard by the game once a macro starts on that key.
  */
-function chordOnKey(spec: ActionSpec, input: string): string | null {
+function sentOnKey(spec: ActionSpec, input: string): string | null {
   if (typeof spec.kbm === "string") {
     const parsed = parseKbm(spec.kbm);
-    if (parsed !== null && parsed.modifiers.length > 0 && parsed.input === input) return spec.kbm;
+    if (parsed !== null && parsed.input === input) return spec.kbm;
   }
-  if (spec.key === input && typeof spec.meta === "string") return `${spec.meta}+${spec.key}`;
+  if (spec.key === input) {
+    return typeof spec.meta === "string" ? `${spec.meta}+${spec.key}` : spec.key;
+  }
   return null;
 }
 
@@ -451,13 +454,15 @@ export function compileMacros(
         clash = true;
       }
     }
-    // The helper swallows a trigger key whatever modifiers are down, so a chord on the same
-    // key (Ctrl+F13 beside a macro on F13) would start the macro and never reach the game.
+    // The helper swallows a trigger key whatever modifiers are down, so another action on the
+    // same key (R on the keypad beside a macro on keyboard R, or Ctrl+F13 beside F13) would
+    // start the macro and never reach the game. Other macros are checked against each other
+    // above.
     for (const trigger of triggers) {
       if (trigger.device === "pad") continue;
       for (const [otherId, other] of Object.entries(actions)) {
-        if (otherId === id) continue;
-        const chord = chordOnKey(other, trigger.input);
+        if (otherId === id || otherId in data.macros) continue;
+        const chord = sentOnKey(other, trigger.input);
         if (chord === null) continue;
         problems.push({
           macro: id,

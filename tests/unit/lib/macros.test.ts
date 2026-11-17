@@ -480,6 +480,26 @@ describe("compileMacros", () => {
     expect(compileMacros(only, apart).problems).toEqual([]);
   });
 
+  it("refuses a keyboard trigger that an ordinary action sends plain, on the keypad or the keyboard", () => {
+    const only = parseMacros({ macros: { quick: ["KeyB"] } }, "macros.yaml");
+    const bound = { ...actions, quick: { label: "Quick", key: "F13", kbm: "KeyZ" } };
+    expect(compileMacros(only, bound).problems).toEqual([]);
+    const onKeypad = { ...bound, fire: { label: "Fire", key: "KeyZ" } };
+    expect(compileMacros(only, onKeypad).problems).toEqual([
+      {
+        macro: "quick",
+        rule: "macro-trigger",
+        message: "KeyZ is swallowed from 'fire', which is on KeyZ",
+      },
+    ]);
+    const onKeyboard = { ...bound, fire: { label: "Fire", kbm: "KeyZ" } };
+    expect(compileMacros(only, onKeyboard).problems).toHaveLength(1);
+    // Another macro is the trigger check's own business, not this one's.
+    const two = parseMacros({ macros: { quick: ["KeyB"], other: ["KeyC"] } }, "macros.yaml");
+    const apart = { ...bound, other: { label: "Other", key: "F20" } };
+    expect(compileMacros(two, apart).problems).toEqual([]);
+  });
+
   it("lets a pad button share a name with a key, since they are different buttons", () => {
     const ok = {
       one: { label: "One", pad: "A" },

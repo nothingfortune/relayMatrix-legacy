@@ -40,7 +40,7 @@ const ORIGINAL_ACTIONS = readFileSync(ACTIONS, "utf8");
 
 /** Two macro actions added to the scratch game: one trigger each, and a game key to type. */
 function addActions(extra = ""): void {
-  const added = `actions:\n  quick_heal: {label: Quick heal, key: F13, kbm: KeyM, pad: RB}\n  reload_all: {label: Reload all, key: F14, kbm: KeyR}\n${extra}`;
+  const added = `actions:\n  quick_heal: {label: Quick heal, key: F13, kbm: Semicolon, pad: RB}\n  reload_all: {label: Reload all, key: F14, kbm: KeyR}\n${extra}`;
   writeFileSync(ACTIONS, ORIGINAL_ACTIONS.replace(/^actions:\n/m, added), "utf8");
 }
 
@@ -96,7 +96,7 @@ describe("a game with macros", () => {
       repeat: true,
       on: [
         { device: "azeron", input: "F13" },
-        { device: "keyboard", input: "KeyM" },
+        { device: "keyboard", input: "Semicolon" },
         { device: "pad", input: "RB" },
       ],
     });
